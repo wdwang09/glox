@@ -1,0 +1,9 @@
+*.lox
+*.exe
+
+tmp
+del
+delete
+
+.idea
+.vscode

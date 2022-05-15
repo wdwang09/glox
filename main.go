@@ -3,7 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"glox/glox"
+	"glox/src"
 	"os"
 )
 
@@ -35,7 +35,7 @@ func runPrompt() int {
 
 func main() {
 	if len(os.Args) > 2 {
-		fmt.Fprintln(os.Stderr, "usage: glox [script]")
+		fmt.Fprintln(os.Stderr, "Usage: glox [script]")
 		os.Exit(64)
 	}
 

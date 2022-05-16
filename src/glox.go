@@ -1,6 +1,8 @@
 package glox
 
-import "fmt"
+import (
+	"fmt"
+)
 
 func Run(source string) {
 	scanner := NewScanner(source)
@@ -11,4 +13,12 @@ func Run(source string) {
 		fmt.Print(" | ")
 	}
 	fmt.Println()
+	parser := NewParser(tokens)
+	expression, err := parser.Parse()
+	if err != nil {
+		// fmt.Fprintln(os.Stderr, err.Error())
+		return
+	}
+	astPrinter := NewAstPrinter()
+	fmt.Println(astPrinter.Print(expression))
 }

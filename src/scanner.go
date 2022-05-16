@@ -1,8 +1,6 @@
 package glox
 
 import (
-	"fmt"
-	"os"
 	"strconv"
 )
 
@@ -107,7 +105,7 @@ func (s *Scanner) scanToken() {
 		} else if isAlpha(ch) {
 			s.identifier()
 		} else {
-			fmt.Fprintln(os.Stderr, s.line, "Unexpected character.")
+			loxLineError(s.line, "Unexpected character.")
 		}
 	}
 }
@@ -151,7 +149,7 @@ func (s *Scanner) string() {
 	}
 
 	if s.isAtEnd() {
-		fmt.Fprintln(os.Stderr, "Unterminated string.")
+		loxLineError(s.line, "Unterminated string.")
 		return
 	}
 

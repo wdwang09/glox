@@ -36,8 +36,7 @@ func initAstTestCase() {
 
 func TestPrintAST(t *testing.T) {
 	initAstTestCase()
-	var astPrinter glox.AstPrinter
-
+	astPrinter := glox.NewAstPrinter()
 	for i, expr := range testCaseExpr {
 		astOutput := astPrinter.Print(expr)
 		if astOutput != testCaseOutput[i] {

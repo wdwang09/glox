@@ -1,9 +1,5 @@
 package glox
 
-import (
-	"fmt"
-)
-
 type Parser struct {
 	tokens  []*Token
 	current int
@@ -16,19 +12,19 @@ func NewParser(tokens []*Token) *Parser {
 	return s
 }
 
-func (s *Parser) Parse() (expr Expr, err error) {
-	expr, err = s.expression()
+func (s *Parser) Parse() (Expr, error) {
+	expr, err := s.expression()
 	return expr, err
 }
 
 // expression     → equality ;
-func (s *Parser) expression() (expr Expr, err error) {
+func (s *Parser) expression() (Expr, error) {
 	return s.equality()
 }
 
 // equality       → comparison ( ( "!=" | "==" ) comparison )* ;
-func (s *Parser) equality() (expr Expr, err error) {
-	expr, err = s.comparison()
+func (s *Parser) equality() (Expr, error) {
+	expr, err := s.comparison()
 	if err != nil {
 		return nil, err
 	}
@@ -40,12 +36,12 @@ func (s *Parser) equality() (expr Expr, err error) {
 		}
 		expr = NewBinary(expr, operator, right)
 	}
-	return expr, err
+	return expr, nil
 }
 
 // comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
-func (s *Parser) comparison() (expr Expr, err error) {
-	expr, err = s.term()
+func (s *Parser) comparison() (Expr, error) {
+	expr, err := s.term()
 	if err != nil {
 		return nil, err
 	}
@@ -57,12 +53,12 @@ func (s *Parser) comparison() (expr Expr, err error) {
 		}
 		expr = NewBinary(expr, operator, right)
 	}
-	return expr, err
+	return expr, nil
 }
 
 // term           → factor ( ( "-" | "+" ) factor )* ;
-func (s *Parser) term() (expr Expr, err error) {
-	expr, err = s.factor()
+func (s *Parser) term() (Expr, error) {
+	expr, err := s.factor()
 	if err != nil {
 		return nil, err
 	}
@@ -74,12 +70,12 @@ func (s *Parser) term() (expr Expr, err error) {
 		}
 		expr = NewBinary(expr, operator, right)
 	}
-	return expr, err
+	return expr, nil
 }
 
 // factor         → unary ( ( "/" | "*" ) unary )* ;
-func (s *Parser) factor() (expr Expr, err error) {
-	expr, err = s.unary()
+func (s *Parser) factor() (Expr, error) {
+	expr, err := s.unary()
 	if err != nil {
 		return nil, err
 	}
@@ -91,26 +87,26 @@ func (s *Parser) factor() (expr Expr, err error) {
 		}
 		expr = NewBinary(expr, operator, right)
 	}
-	return expr, err
+	return expr, nil
 }
 
 // unary          → ( "!" | "-" ) unary
 //                | primary ;
-func (s *Parser) unary() (expr Expr, err error) {
+func (s *Parser) unary() (Expr, error) {
 	if s.match(BANG, MINUS) {
 		operator := s.previous()
 		right, err := s.unary()
 		if err != nil {
 			return nil, err
 		}
-		return NewUnary(operator, right), err
+		return NewUnary(operator, right), nil
 	}
 	return s.primary()
 }
 
 // primary        → NUMBER | STRING | "true" | "false" | "nil"
 //                | "(" expression ")" ;
-func (s *Parser) primary() (expr Expr, err error) {
+func (s *Parser) primary() (Expr, error) {
 	if s.match(NUMBER, STRING) {
 		return NewLiteral(s.previous().literal), nil
 	}
@@ -124,7 +120,7 @@ func (s *Parser) primary() (expr Expr, err error) {
 		return NewLiteral(nil), nil
 	}
 	if s.match(LEFT_PAREN) {
-		expr, err = s.expression()
+		expr, err := s.expression()
 		if err != nil {
 			return nil, err
 		}
@@ -132,7 +128,7 @@ func (s *Parser) primary() (expr Expr, err error) {
 		if err != nil {
 			return nil, err
 		}
-		return NewGrouping(expr), err
+		return NewGrouping(expr), nil
 	}
 	return nil, NewParserError(s.peek(), "Expect expression.")
 }
@@ -173,28 +169,11 @@ func (s *Parser) previous() *Token {
 	return s.tokens[s.current-1]
 }
 
-func (s *Parser) consume(tokenType TokenType, message string) (token *Token, err error) {
+func (s *Parser) consume(tokenType TokenType, message string) (*Token, error) {
 	if s.check(tokenType) {
 		return s.advance(), nil
 	}
 	return nil, NewParserError(s.peek(), message)
-}
-
-type parserError struct {
-	token   *Token
-	message string
-}
-
-func (s *parserError) Error() string {
-	return fmt.Sprintf("Something wrong in parser: [%v] [%v]\n", s.token.String(), s.message)
-}
-
-func NewParserError(token *Token, message string) *parserError {
-	loxTokenError(token, message)
-	s := new(parserError)
-	s.token = token
-	s.message = message
-	return s
 }
 
 func (s *Parser) synchronize() {

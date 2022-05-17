@@ -1,8 +1,6 @@
 package glox
 
-import (
-	"strconv"
-)
+import "strconv"
 
 type Scanner struct {
 	source  string
@@ -21,20 +19,23 @@ func NewScanner(source string) *Scanner {
 	return s
 }
 
-func (s *Scanner) ScanTokens() []*Token {
+func (s *Scanner) ScanTokens() ([]*Token, error) {
 	for !s.isAtEnd() {
 		s.start = s.current
-		s.scanToken()
+		err := s.scanToken()
+		if err != nil {
+			return nil, err
+		}
 	}
 	s.tokens = append(s.tokens, NewToken(EOF, "", nil, s.line))
-	return s.tokens
+	return s.tokens, nil
 }
 
 func (s *Scanner) isAtEnd() bool {
 	return s.current >= len(s.source)
 }
 
-func (s *Scanner) scanToken() {
+func (s *Scanner) scanToken() error {
 	ch := s.advance()
 	switch ch {
 	case '(':
@@ -105,9 +106,10 @@ func (s *Scanner) scanToken() {
 		} else if isAlpha(ch) {
 			s.identifier()
 		} else {
-			loxLineError(s.line, "Unexpected character.")
+			return NewLineError(s.line, "Unexpected character.")
 		}
 	}
+	return nil
 }
 
 func (s *Scanner) advance() uint8 {
@@ -140,7 +142,7 @@ func (s *Scanner) peek() uint8 {
 	return s.source[s.current]
 }
 
-func (s *Scanner) string() {
+func (s *Scanner) string() error {
 	for s.peek() != '"' && !s.isAtEnd() {
 		if s.peek() == '\n' {
 			s.line++
@@ -149,12 +151,12 @@ func (s *Scanner) string() {
 	}
 
 	if s.isAtEnd() {
-		loxLineError(s.line, "Unterminated string.")
-		return
+		return NewLineError(s.line, "Unexpected character.")
 	}
 
 	s.advance()
 	s.addTokenLiteral(STRING, s.source[s.start+1:s.current-1])
+	return nil
 }
 
 func isDigit(ch uint8) bool {

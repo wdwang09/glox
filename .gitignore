@@ -2,6 +2,7 @@ glox
 *.exe
 *.lox
 
+_*.go
 tmp
 del
 delete

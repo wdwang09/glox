@@ -23,7 +23,10 @@ func TestScanner(t *testing.T) {
 	initLoxCodeNumTestCase()
 	for code, num := range loxCodeNum {
 		scanner := glox.NewScanner(code)
-		tokens := scanner.ScanTokens()
+		tokens, err := scanner.ScanTokens()
+		if err != nil {
+			t.Fatal(err.Error())
+		}
 		if len(tokens) != num {
 			fmt.Println("====================================================")
 			fmt.Println(code)

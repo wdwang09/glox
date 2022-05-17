@@ -38,7 +38,10 @@ func TestPrintAST(t *testing.T) {
 	initAstTestCase()
 	astPrinter := glox.NewAstPrinter()
 	for i, expr := range testCaseExpr {
-		astOutput := astPrinter.Print(expr)
+		astOutput, err := astPrinter.Print(expr)
+		if err != nil {
+			t.Fatalf("Error: %v", err.Error())
+		}
 		if astOutput != testCaseOutput[i] {
 			t.Fatalf("\nOutput: %v\nExpect: %v", astOutput, testCaseOutput[i])
 		}

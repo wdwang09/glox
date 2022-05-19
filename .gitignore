@@ -1,6 +1,5 @@
 glox
 *.exe
-*.lox
 
 _*.go
 tmp

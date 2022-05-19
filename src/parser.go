@@ -6,20 +6,152 @@ type Parser struct {
 }
 
 func NewParser(tokens []*Token) *Parser {
-	s := new(Parser)
-	s.tokens = tokens
-	s.current = 0
-	return s
+	return &Parser{
+		tokens:  tokens,
+		current: 0,
+	}
 }
 
-func (s *Parser) Parse() (Expr, error) {
+func (s *Parser) ParseExpressionForTest() (Expr, error) {
+	return s.expression()
+}
+
+func (s *Parser) Parse() ([]Stmt, error) {
+	var statements []Stmt
+	for !s.isAtEnd() {
+		stmt, err := s.declaration()
+		if err != nil {
+			return nil, err
+		}
+		statements = append(statements, stmt)
+	}
+	return statements, nil
+}
+
+// =====
+
+func (s *Parser) block() ([]Stmt, error) {
+	var statements []Stmt
+	for !s.check(RIGHT_BRACE) && !s.isAtEnd() {
+		stmt, err := s.declaration()
+		if err != nil {
+			return nil, err
+		}
+		statements = append(statements, stmt)
+	}
+	_, err := s.consume(RIGHT_BRACE, "Expect '}' after block.")
+	if err != nil {
+		return nil, err
+	} else {
+		return statements, nil
+	}
+}
+
+// declaration    → varDecl
+//                | statement ;
+func (s *Parser) declaration() (Stmt, error) {
+	if s.match(VAR) {
+		stmt, err := s.varDeclaration()
+		// other methods: https://go.dev/blog/go1.13-errors
+		if _, ok := err.(*ParserError); ok {
+			s.synchronize()
+		}
+		if err != nil {
+			return nil, err
+		}
+		return stmt, nil
+	}
+	stmt, err := s.statement()
+	if _, ok := err.(*ParserError); ok {
+		s.synchronize()
+	}
+	if err != nil {
+		return nil, err
+	}
+	return stmt, nil
+}
+
+func (s *Parser) varDeclaration() (Stmt, error) {
+	name, err := s.consume(IDENTIFIER, "Expect variable name.")
+	if err != nil {
+		return nil, err
+	}
+	var initializer Expr = nil
+	if s.match(EQUAL) {
+		initializer, err = s.expression()
+		if err != nil {
+			return nil, err
+		}
+	}
+	_, err = s.consume(SEMICOLON, "Expect ';' after variable declaration.")
+	if err != nil {
+		return nil, err
+	}
+	return NewVar(name, initializer), nil
+}
+
+// statement      → exprStmt
+//                | printStmt ;
+func (s *Parser) statement() (Stmt, error) {
+	if s.match(PRINT) {
+		return s.printStatement()
+	}
+	if s.match(LEFT_BRACE) {
+		stmts, err := s.block()
+		if err != nil {
+			return nil, err
+		}
+		return NewBlock(stmts), nil
+	}
+	return s.expressionStatement()
+}
+
+func (s *Parser) expressionStatement() (Stmt, error) {
 	expr, err := s.expression()
-	return expr, err
+	if err != nil {
+		return nil, err
+	}
+	_, err = s.consume(SEMICOLON, "Expect ';' after expression.")
+	return NewExpression(expr), nil
 }
 
-// expression     → equality ;
+func (s *Parser) printStatement() (Stmt, error) {
+	value, err := s.expression()
+	if err != nil {
+		return nil, err
+	}
+	_, err = s.consume(SEMICOLON, "Expect ';' after value.")
+	return NewPrint(value), nil
+}
+
+// =====
+
+// expression     → assignment ;
 func (s *Parser) expression() (Expr, error) {
-	return s.equality()
+	// return s.equality()
+	return s.assignment()
+}
+
+// assignment     → IDENTIFIER "=" assignment
+//                | equality ;
+func (s *Parser) assignment() (Expr, error) {
+	expr, err := s.equality()
+	if err != nil {
+		return nil, err
+	}
+	if s.match(EQUAL) {
+		equals := s.previous()
+		value, err := s.assignment()
+		if err != nil {
+			return nil, err
+		}
+		if v, ok := expr.(*Variable); ok {
+			name := v.name
+			return NewAssign(name, value), nil
+		}
+		return nil, NewParserError(equals, "Invalid assignment target.")
+	}
+	return expr, nil
 }
 
 // equality       → comparison ( ( "!=" | "==" ) comparison )* ;
@@ -118,6 +250,9 @@ func (s *Parser) primary() (Expr, error) {
 	}
 	if s.match(NIL) {
 		return NewLiteral(nil), nil
+	}
+	if s.match(IDENTIFIER) {
+		return NewVariable(s.previous()), nil
 	}
 	if s.match(LEFT_PAREN) {
 		expr, err := s.expression()

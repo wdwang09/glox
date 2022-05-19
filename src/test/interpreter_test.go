@@ -52,16 +52,16 @@ func TestInterpreter(t *testing.T) {
 			t.Fatal(err.Error())
 		}
 		parser := glox.NewParser(tokens)
-		expression, err := parser.Parse()
+		expression, err := parser.ParseExpressionForTest()
 		if err != nil {
 			t.Fatal(err.Error())
 		}
-		interpreter := glox.Interpreter{}
-		value, err := interpreter.Interpret(expression)
+		interpreter := glox.NewInterpreter()
+		value, err := interpreter.InterpretExpressionForTest(expression)
+		if err != nil {
+			t.Fatal(err.Error())
+		}
 		value = interpreter.Stringify(value)
-		if err != nil {
-			t.Fatal(err.Error())
-		}
 		if value != valueExpectation {
 			t.Fatalf("\nTestcase: %v\nOutput: %v\nExpect: %v",
 				code, value, valueExpectation)

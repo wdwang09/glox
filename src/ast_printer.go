@@ -5,7 +5,7 @@ import "fmt"
 type AstPrinter struct{}
 
 func NewAstPrinter() *AstPrinter {
-	return new(AstPrinter)
+	return &AstPrinter{}
 }
 
 func (s *AstPrinter) Print(expr Expr) (string, error) {
@@ -31,61 +31,61 @@ func (s *AstPrinter) parenthesize(name string, exprList ...Expr) (string, error)
 	return res, nil
 }
 
-func (s *AstPrinter) visitAssignExpr(assign *Assign) (interface{}, error) {
+func (s *AstPrinter) visitAssignExpr(expr *Assign) (interface{}, error) {
 	// TODO implement me
 	panic("implement me")
 }
 
-func (s *AstPrinter) visitBinaryExpr(binary *Binary) (interface{}, error) {
-	return s.parenthesize(binary.operator.lexeme, binary.left, binary.right)
+func (s *AstPrinter) visitBinaryExpr(expr *Binary) (interface{}, error) {
+	return s.parenthesize(expr.operator.lexeme, expr.left, expr.right)
 }
 
-func (s *AstPrinter) visitCallExpr(call *Call) (interface{}, error) {
+func (s *AstPrinter) visitCallExpr(expr *Call) (interface{}, error) {
 	// TODO implement me
 	panic("implement me")
 }
 
-func (s *AstPrinter) visitGetExpr(get *Get) (str interface{}, err error) {
+func (s *AstPrinter) visitGetExpr(expr *Get) (str interface{}, err error) {
 	// TODO implement me
 	panic("implement me")
 }
 
-func (s *AstPrinter) visitGroupingExpr(grouping *Grouping) (str interface{}, err error) {
-	return s.parenthesize("group", grouping.expression)
+func (s *AstPrinter) visitGroupingExpr(expr *Grouping) (str interface{}, err error) {
+	return s.parenthesize("group", expr.expression)
 }
 
-func (s *AstPrinter) visitLiteralExpr(literal *Literal) (str interface{}, err error) {
-	if literal.value == nil {
+func (s *AstPrinter) visitLiteralExpr(expr *Literal) (str interface{}, err error) {
+	if expr.value == nil {
 		return "nil", nil
 	}
-	return fmt.Sprintf("%v", literal.value), nil
+	return fmt.Sprintf("%v", expr.value), nil
 }
 
-func (s *AstPrinter) visitLogicalExpr(logical *Logical) (str interface{}, err error) {
+func (s *AstPrinter) visitLogicalExpr(expr *Logical) (str interface{}, err error) {
 	// TODO implement me
 	panic("implement me")
 }
 
-func (s *AstPrinter) visitSetExpr(set *Set) (str interface{}, err error) {
+func (s *AstPrinter) visitSetExpr(expr *Set) (str interface{}, err error) {
 	// TODO implement me
 	panic("implement me")
 }
 
-func (s *AstPrinter) visitSuperExpr(super *Super) (str interface{}, err error) {
+func (s *AstPrinter) visitSuperExpr(expr *Super) (str interface{}, err error) {
 	// TODO implement me
 	panic("implement me")
 }
 
-func (s *AstPrinter) visitThisExpr(this *This) (str interface{}, err error) {
+func (s *AstPrinter) visitThisExpr(expr *This) (str interface{}, err error) {
 	// TODO implement me
 	panic("implement me")
 }
 
-func (s *AstPrinter) visitUnaryExpr(unary *Unary) (str interface{}, err error) {
-	return s.parenthesize(unary.operator.lexeme, unary.right)
+func (s *AstPrinter) visitUnaryExpr(expr *Unary) (str interface{}, err error) {
+	return s.parenthesize(expr.operator.lexeme, expr.right)
 }
 
-func (s *AstPrinter) visitVariableExpr(variable *Variable) (str interface{}, err error) {
+func (s *AstPrinter) visitVariableExpr(expr *Variable) (str interface{}, err error) {
 	// TODO implement me
 	panic("implement me")
 }

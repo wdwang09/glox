@@ -10,12 +10,12 @@ type Token struct {
 }
 
 func NewToken(tokenType TokenType, lexeme string, literal interface{}, line int) *Token {
-	t := new(Token)
-	t.tokenType = tokenType
-	t.lexeme = lexeme
-	t.literal = literal
-	t.line = line
-	return t
+	return &Token{
+		tokenType: tokenType,
+		lexeme:    lexeme,
+		literal:   literal,
+		line:      line,
+	}
 }
 
 func (t *Token) String() string {

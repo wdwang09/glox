@@ -11,12 +11,13 @@ type Scanner struct {
 }
 
 func NewScanner(source string) *Scanner {
-	s := new(Scanner)
-	s.source = source
-	s.start = 0
-	s.current = 0
-	s.line = 1
-	return s
+	return &Scanner{
+		source:  source,
+		tokens:  []*Token{},
+		start:   0,
+		current: 0,
+		line:    1,
+	}
 }
 
 func (s *Scanner) ScanTokens() ([]*Token, error) {

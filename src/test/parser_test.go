@@ -49,7 +49,7 @@ func TestParser(t *testing.T) {
 			t.Fatal(err.Error())
 		}
 		parser := glox.NewParser(tokens)
-		expression, err := parser.Parse()
+		expression, err := parser.ParseExpressionForTest()
 		if err != nil {
 			t.Fatal(err.Error())
 		}

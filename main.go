@@ -1,51 +1,27 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"glox/src"
 	"os"
 )
 
-func runFile(path string) int {
-	fileData, err := os.ReadFile(path)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return 1
-	}
-	glox.Run(string(fileData))
-	return 0
-}
-
-func runPrompt() int {
-	reader := bufio.NewReader(os.Stdin)
-	for {
-		fmt.Print("> ")
-		line, err := reader.ReadString('\n')
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return 1
-		}
-		// if line == "" {
-		//	continue
-		// }
-		glox.Run(line)
-	}
-}
-
 func main() {
 	if len(os.Args) > 2 {
-		fmt.Fprintln(os.Stderr, "Usage: glox [script]")
+		_, _ = fmt.Fprintln(os.Stderr, "[Main] Usage: glox [script]")
 		os.Exit(64)
 	}
 
+	loxInterpreter := glox.NewGlox()
+
 	if len(os.Args) == 2 {
-		code := runFile(os.Args[1])
+		code := loxInterpreter.RunFile(os.Args[1])
 		if code != 0 {
+			_, _ = fmt.Fprintln(os.Stderr, "[Main] Failed when running file", os.Args[1])
 			os.Exit(code)
 		}
 	} else {
-		code := runPrompt()
+		code := loxInterpreter.RunPrompt()
 		if code != 0 {
 			os.Exit(code)
 		}

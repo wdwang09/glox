@@ -5,19 +5,38 @@ import (
 	"reflect"
 )
 
-type Interpreter struct{}
-
-func NewInterpreter() *Interpreter {
-	s := new(Interpreter)
-	return s
+type Interpreter struct {
+	environment *Environment
 }
 
-func (s *Interpreter) Interpret(expr Expr) (interface{}, error) {
+func NewInterpreter() *Interpreter {
+	return &Interpreter{
+		environment: NewEnvironment(nil),
+	}
+}
+
+func (s *Interpreter) InterpretExpressionForTest(expr Expr) (interface{}, error) {
 	value, err := s.evaluate(expr)
 	if err != nil {
 		return nil, err
 	}
 	return value, err
+}
+
+func (s *Interpreter) Interpret(statements []Stmt) (interface{}, error) {
+	var value interface{}
+	for _, stmt := range statements {
+		var err error
+		value, err = s.execute(stmt)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return value, nil
+}
+
+func (s *Interpreter) execute(stmt Stmt) (interface{}, error) {
+	return stmt.Accept(s)
 }
 
 func (s *Interpreter) Stringify(obj interface{}) string {
@@ -35,45 +54,127 @@ func (s *Interpreter) Stringify(obj interface{}) string {
 	return obj.(string)
 }
 
-func (s *Interpreter) evaluate(expr Expr) (interface{}, error) {
-	return expr.Accept(s)
+// =====
+
+func (s *Interpreter) visitBlockStmt(stmt *Block) (interface{}, error) {
+	err := s.executeBlock(stmt.statements, NewEnvironment(s.environment))
+	return nil, err
 }
 
-func (s *Interpreter) visitAssignExpr(assign *Assign) (interface{}, error) {
+func (s *Interpreter) visitClassStmt(stmt *Class) (interface{}, error) {
 	// TODO implement me
 	panic("implement me")
 }
 
-func (s *Interpreter) visitBinaryExpr(binary *Binary) (interface{}, error) {
-	left, err := s.evaluate(binary.left)
+func (s *Interpreter) visitExpressionStmt(stmt *Expression) (interface{}, error) {
+	return s.evaluate(stmt.expression)
+}
+
+func (s *Interpreter) visitFunctionStmt(stmt *Function) (interface{}, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (s *Interpreter) visitIfStmt(stmt *If) (interface{}, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (s *Interpreter) visitPrintStmt(stmt *Print) (interface{}, error) {
+	value, err := s.evaluate(stmt.expression)
 	if err != nil {
 		return nil, err
 	}
-	right, err := s.evaluate(binary.right)
+	fmt.Println("[Lox]", s.Stringify(value))
+	return nil, nil
+}
+
+func (s *Interpreter) visitReturnStmt(stmt *Return) (interface{}, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (s *Interpreter) visitVarStmt(stmt *Var) (interface{}, error) {
+	var value interface{} = nil
+	if stmt.initializer != nil {
+		var err error
+		value, err = s.evaluate(stmt.initializer)
+		if err != nil {
+			return nil, err
+		}
+	}
+	s.environment.define(stmt.name.lexeme, value)
+	return nil, nil
+}
+
+func (s *Interpreter) visitWhileStmt(stmt *While) (interface{}, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+// =====
+
+func (s *Interpreter) executeBlock(statements []Stmt, environment *Environment) (err error) {
+	previous := s.environment
+	s.environment = environment
+	for _, statement := range statements {
+		_, err = s.execute(statement)
+		if err != nil {
+			break
+		}
+	}
+	s.environment = previous
+	return err
+}
+
+// =====
+
+func (s *Interpreter) evaluate(expr Expr) (interface{}, error) {
+	return expr.Accept(s)
+}
+
+func (s *Interpreter) visitAssignExpr(expr *Assign) (interface{}, error) {
+	value, err := s.evaluate(expr.value)
 	if err != nil {
 		return nil, err
 	}
-	switch binary.operator.tokenType {
+	err = s.environment.assign(expr.name, value)
+	if err != nil {
+		return nil, err
+	}
+	return value, nil
+}
+
+func (s *Interpreter) visitBinaryExpr(expr *Binary) (interface{}, error) {
+	left, err := s.evaluate(expr.left)
+	if err != nil {
+		return nil, err
+	}
+	right, err := s.evaluate(expr.right)
+	if err != nil {
+		return nil, err
+	}
+	switch expr.operator.tokenType {
 	case GREATER:
-		err = s.checkNumberOperands(binary.operator, left, right)
+		err = s.checkNumberOperands(expr.operator, left, right)
 		if err != nil {
 			return nil, err
 		}
 		return left.(float64) > right.(float64), nil
 	case GREATER_EQUAL:
-		err = s.checkNumberOperands(binary.operator, left, right)
+		err = s.checkNumberOperands(expr.operator, left, right)
 		if err != nil {
 			return nil, err
 		}
 		return left.(float64) >= right.(float64), nil
 	case LESS:
-		err = s.checkNumberOperands(binary.operator, left, right)
+		err = s.checkNumberOperands(expr.operator, left, right)
 		if err != nil {
 			return nil, err
 		}
 		return left.(float64) < right.(float64), nil
 	case LESS_EQUAL:
-		err = s.checkNumberOperands(binary.operator, left, right)
+		err = s.checkNumberOperands(expr.operator, left, right)
 		if err != nil {
 			return nil, err
 		}
@@ -83,19 +184,19 @@ func (s *Interpreter) visitBinaryExpr(binary *Binary) (interface{}, error) {
 	case EQUAL_EQUAL:
 		return s.isEqual(left, right), nil
 	case MINUS:
-		err = s.checkNumberOperands(binary.operator, left, right)
+		err = s.checkNumberOperands(expr.operator, left, right)
 		if err != nil {
 			return nil, err
 		}
 		return left.(float64) - right.(float64), nil
 	case SLASH:
-		err = s.checkNumberOperands(binary.operator, left, right)
+		err = s.checkNumberOperands(expr.operator, left, right)
 		if err != nil {
 			return nil, err
 		}
 		return left.(float64) / right.(float64), nil
 	case STAR:
-		err = s.checkNumberOperands(binary.operator, left, right)
+		err = s.checkNumberOperands(expr.operator, left, right)
 		if err != nil {
 			return nil, err
 		}
@@ -107,59 +208,59 @@ func (s *Interpreter) visitBinaryExpr(binary *Binary) (interface{}, error) {
 		if isString(left) && isString(right) {
 			return left.(string) + right.(string), nil
 		}
-		return nil, NewRuntimeError(binary.operator, "Operands must be two numbers or two strings.")
+		return nil, NewRuntimeError(expr.operator, "Operands must be two numbers or two strings.")
 	}
 	return nil, nil
 }
 
-func (s *Interpreter) visitCallExpr(call *Call) (interface{}, error) {
+func (s *Interpreter) visitCallExpr(expr *Call) (interface{}, error) {
 	// TODO implement me
 	panic("implement me")
 }
 
-func (s *Interpreter) visitGetExpr(get *Get) (interface{}, error) {
+func (s *Interpreter) visitGetExpr(expr *Get) (interface{}, error) {
 	// TODO implement me
 	panic("implement me")
 }
 
-func (s *Interpreter) visitGroupingExpr(grouping *Grouping) (interface{}, error) {
-	return s.evaluate(grouping.expression)
+func (s *Interpreter) visitGroupingExpr(expr *Grouping) (interface{}, error) {
+	return s.evaluate(expr.expression)
 }
 
-func (s *Interpreter) visitLiteralExpr(literal *Literal) (interface{}, error) {
-	return literal.value, nil
+func (s *Interpreter) visitLiteralExpr(expr *Literal) (interface{}, error) {
+	return expr.value, nil
 }
 
-func (s *Interpreter) visitLogicalExpr(logical *Logical) (interface{}, error) {
+func (s *Interpreter) visitLogicalExpr(expr *Logical) (interface{}, error) {
 	// TODO implement me
 	panic("implement me")
 }
 
-func (s *Interpreter) visitSetExpr(set *Set) (interface{}, error) {
+func (s *Interpreter) visitSetExpr(expr *Set) (interface{}, error) {
 	// TODO implement me
 	panic("implement me")
 }
 
-func (s *Interpreter) visitSuperExpr(super *Super) (interface{}, error) {
+func (s *Interpreter) visitSuperExpr(expr *Super) (interface{}, error) {
 	// TODO implement me
 	panic("implement me")
 }
 
-func (s *Interpreter) visitThisExpr(this *This) (interface{}, error) {
+func (s *Interpreter) visitThisExpr(expr *This) (interface{}, error) {
 	// TODO implement me
 	panic("implement me")
 }
 
-func (s *Interpreter) visitUnaryExpr(unary *Unary) (interface{}, error) {
-	right, err := s.evaluate(unary.right)
+func (s *Interpreter) visitUnaryExpr(expr *Unary) (interface{}, error) {
+	right, err := s.evaluate(expr.right)
 	if err != nil {
 		return nil, err
 	}
-	switch unary.operator.tokenType {
+	switch expr.operator.tokenType {
 	case BANG:
 		return !s.isTruthy(right), nil
 	case MINUS:
-		err = s.checkNumberOperands(unary.operator, right)
+		err = s.checkNumberOperands(expr.operator, right)
 		if err != nil {
 			return nil, err
 		}
@@ -168,9 +269,8 @@ func (s *Interpreter) visitUnaryExpr(unary *Unary) (interface{}, error) {
 	return nil, nil
 }
 
-func (s *Interpreter) visitVariableExpr(variable *Variable) (interface{}, error) {
-	// TODO implement me
-	panic("implement me")
+func (s *Interpreter) visitVariableExpr(expr *Variable) (interface{}, error) {
+	return s.environment.get(expr.name)
 }
 
 func (s *Interpreter) isTruthy(obj interface{}) bool {

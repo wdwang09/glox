@@ -76,8 +76,16 @@ func (s *Interpreter) visitFunctionStmt(stmt *Function) (interface{}, error) {
 }
 
 func (s *Interpreter) visitIfStmt(stmt *If) (interface{}, error) {
-	// TODO implement me
-	panic("implement me")
+	condition, err := s.evaluate(stmt.condition)
+	if err != nil {
+		return nil, err
+	}
+	if s.isTruthy(condition) {
+		return s.execute(stmt.thenBranch)
+	} else if stmt.elseBranch != nil {
+		return s.execute(stmt.elseBranch)
+	}
+	return nil, nil
 }
 
 func (s *Interpreter) visitPrintStmt(stmt *Print) (interface{}, error) {
@@ -85,7 +93,7 @@ func (s *Interpreter) visitPrintStmt(stmt *Print) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("[Lox]", s.Stringify(value))
+	fmt.Println("[Print]", s.Stringify(value))
 	return nil, nil
 }
 
@@ -108,8 +116,20 @@ func (s *Interpreter) visitVarStmt(stmt *Var) (interface{}, error) {
 }
 
 func (s *Interpreter) visitWhileStmt(stmt *While) (interface{}, error) {
-	// TODO implement me
-	panic("implement me")
+	for {
+		condition, err := s.evaluate(stmt.condition)
+		if err != nil {
+			return nil, err
+		}
+		if s.isTruthy(condition) {
+			_, err = s.execute(stmt.body)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, nil
+		}
+	}
 }
 
 // =====
@@ -232,8 +252,18 @@ func (s *Interpreter) visitLiteralExpr(expr *Literal) (interface{}, error) {
 }
 
 func (s *Interpreter) visitLogicalExpr(expr *Logical) (interface{}, error) {
-	// TODO implement me
-	panic("implement me")
+	left, err := s.evaluate(expr.left)
+	if err != nil {
+		return nil, err
+	}
+	if expr.operator.tokenType == OR {
+		if s.isTruthy(left) {
+			return left, nil
+		}
+	} else if !s.isTruthy(left) { // AND
+		return left, nil
+	}
+	return s.evaluate(expr.right)
 }
 
 func (s *Interpreter) visitSetExpr(expr *Set) (interface{}, error) {

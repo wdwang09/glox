@@ -95,11 +95,15 @@ func (s *Scanner) scanToken() error {
 		}
 
 	case ' ', '\r', '\t':
+
 	case '\n':
 		s.line++
 
 	case '"':
-		s.string()
+		err := s.string()
+		if err != nil {
+			return err
+		}
 
 	default:
 		if isDigit(ch) {

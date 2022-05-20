@@ -79,7 +79,7 @@ func (s *Glox) run(source string) int {
 		return 1
 	}
 	if value != nil {
-		fmt.Println(s.interpreter.Stringify(value))
+		fmt.Println("[Expression]", s.interpreter.Stringify(value))
 	}
 	return 0
 }

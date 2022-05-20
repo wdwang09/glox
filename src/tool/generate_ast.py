@@ -28,7 +28,11 @@ def java_to_go(types: List[str]) -> List[List[str]]:
                 if t[-1] == ">":
                     t = t[:-1]
             if t[:4] == "List":
-                t = "[]" + t[5:-1]
+                tmp_t = "[]"
+                if t[5:9].lower() not in ("expr", "stmt"):
+                    tmp_t += "*"
+                tmp_t += t[5:-1]
+                t = tmp_t
             elif t[:6] == "Object":
                 t = "interface{}"
             go[-1].append([m, t])
@@ -71,8 +75,7 @@ def define_ast(base_name: str, types: List[str]):
         for eel in el[1:]:
             star = (
                 "*"
-                if eel[1][0] != "["
-                and eel[1] != "interface{}"
+                if eel[1] != "interface{}"
                 and eel[1].lower() != "expr"
                 and eel[1].lower() != "stmt"
                 else ""
@@ -85,8 +88,7 @@ def define_ast(base_name: str, types: List[str]):
         for eel in el[1:]:
             star = (
                 "*"
-                if eel[1][0] != "["
-                and eel[1] != "interface{}"
+                if eel[1] != "interface{}"
                 and eel[1].lower() != "expr"
                 and eel[1].lower() != "stmt"
                 else ""

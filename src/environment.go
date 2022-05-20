@@ -14,8 +14,9 @@ func NewEnvironment(enclosing *Environment) *Environment {
 	}
 }
 
-func (s *Environment) define(name string, value interface{}) {
+func (s *Environment) define(name string, value interface{}) error {
 	s.values[name] = value
+	return nil
 }
 
 func (s *Environment) get(name *Token) (interface{}, error) {

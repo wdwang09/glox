@@ -1,5 +1,7 @@
 package glox
 
+// TODO: Parser遇到空行时会出问题
+
 type Parser struct {
 	tokens  []*Token
 	current int
@@ -48,9 +50,13 @@ func (s *Parser) block() ([]Stmt, error) {
 	}
 }
 
-// declaration    → varDecl
+// declaration    → funDecl
+//                | varDecl
 //                | statement ;
 func (s *Parser) declaration() (Stmt, error) {
+	if s.match(FUN) {
+		return s.function("function")
+	}
 	if s.match(VAR) {
 		stmt, err := s.varDeclaration()
 		// other methods: https://go.dev/blog/go1.13-errors
@@ -71,6 +77,54 @@ func (s *Parser) declaration() (Stmt, error) {
 	}
 	return stmt, nil
 }
+
+// funDecl        → "fun" function ;
+// function       → IDENTIFIER "(" parameters? ")" block ;
+func (s *Parser) function(kind string) (*Function, error) {
+	funcName, err := s.consume(IDENTIFIER, "Expect "+kind+" name.")
+	if err != nil {
+		return nil, err
+	}
+	_, err = s.consume(LEFT_PAREN, "Expect '(' after "+kind+" name.")
+	if err != nil {
+		return nil, err
+	}
+	var parameters []*Token
+	if !s.check(RIGHT_PAREN) {
+		for {
+			// if len(parameters) >= 255 {
+			// 	return nil, NewParserError(s.peek(), "Can't have more than 255 arguments.")
+			// }
+
+			parameterName, err := s.consume(IDENTIFIER, "Expect parameter name.")
+			if err != nil {
+				return nil, err
+			}
+			parameters = append(parameters, parameterName)
+
+			if !s.match(COMMA) {
+				break
+			}
+		}
+	}
+	_, err = s.consume(RIGHT_PAREN, "Expect ')' after parameters.")
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = s.consume(LEFT_BRACE, "Expect '{' before "+kind+" body.")
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := s.block()
+	if err != nil {
+		return nil, err
+	}
+	return NewFunction(funcName, &parameters, &body), nil
+}
+
+// parameters     → IDENTIFIER ( "," IDENTIFIER )* ;
 
 // varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
 func (s *Parser) varDeclaration() (Stmt, error) {
@@ -96,6 +150,7 @@ func (s *Parser) varDeclaration() (Stmt, error) {
 //                | forStmt
 //                | ifStmt
 //                | printStmt
+//                | returnStmt
 //                | whileStmt
 //                | block ;
 func (s *Parser) statement() (Stmt, error) {
@@ -108,6 +163,9 @@ func (s *Parser) statement() (Stmt, error) {
 	if s.match(PRINT) {
 		return s.printStatement()
 	}
+	if s.match(RETURN) {
+		return s.returnStatement()
+	}
 	if s.match(WHILE) {
 		return s.whileStatement()
 	}
@@ -116,7 +174,7 @@ func (s *Parser) statement() (Stmt, error) {
 		if err != nil {
 			return nil, err
 		}
-		return NewBlock(stmts), nil
+		return NewBlock(&stmts), nil
 	}
 	return s.expressionStatement()
 }
@@ -198,7 +256,7 @@ func (s *Parser) forStatement() (Stmt, error) {
 		var blockList []Stmt
 		blockList = append(blockList, body)
 		blockList = append(blockList, NewExpression(increment))
-		body = NewBlock(blockList)
+		body = NewBlock(&blockList)
 	}
 
 	if condition == nil {
@@ -210,7 +268,7 @@ func (s *Parser) forStatement() (Stmt, error) {
 		var blockList []Stmt
 		blockList = append(blockList, initializer)
 		blockList = append(blockList, body)
-		body = NewBlock(blockList)
+		body = NewBlock(&blockList)
 	}
 
 	return body, nil
@@ -264,6 +322,24 @@ func (s *Parser) whileStatement() (Stmt, error) {
 		return nil, err
 	}
 	return NewWhile(condition, body), nil
+}
+
+// returnStmt     → "return" expression? ";" ;
+func (s *Parser) returnStatement() (Stmt, error) {
+	keyword := s.previous()
+	var value Expr
+	var err error
+	if !s.check(SEMICOLON) {
+		value, err = s.expression()
+		if err != nil {
+			return nil, err
+		}
+	}
+	_, err = s.consume(SEMICOLON, "Expect ';' after return value.")
+	if err != nil {
+		return nil, err
+	}
+	return NewReturn(keyword, value), nil
 }
 
 // =====
@@ -398,8 +474,7 @@ func (s *Parser) factor() (Expr, error) {
 	return expr, nil
 }
 
-// unary          → ( "!" | "-" ) unary
-//                | primary ;
+// unary          → ( "!" | "-" ) unary | call ;
 func (s *Parser) unary() (Expr, error) {
 	if s.match(BANG, MINUS) {
 		operator := s.previous()
@@ -409,8 +484,55 @@ func (s *Parser) unary() (Expr, error) {
 		}
 		return NewUnary(operator, right), nil
 	}
-	return s.primary()
+	return s.call()
 }
+
+// call           → primary ( "(" arguments? ")" )* ;
+func (s *Parser) call() (Expr, error) {
+	expr, err := s.primary()
+	if err != nil {
+		return nil, err
+	}
+	for {
+		if s.match(LEFT_PAREN) {
+			expr, err = s.finishCall(expr)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			break
+		}
+	}
+	return expr, nil
+}
+
+func (s *Parser) finishCall(callee Expr) (Expr, error) {
+	var arguments []Expr
+	if !s.check(RIGHT_PAREN) {
+		for {
+			// if len(arguments) >= 255 {
+			// 	return nil, NewParserError(s.peek(), "Can't have more than 255 arguments.")
+			// }
+
+			expr, err := s.expression()
+			if err != nil {
+				return nil, err
+			}
+			arguments = append(arguments, expr)
+
+			if !s.match(COMMA) {
+				break
+			}
+		}
+	}
+	paren, err := s.consume(RIGHT_PAREN, "Expect ')' after arguments.")
+	if err != nil {
+		return nil, err
+	}
+	return NewCall(callee, paren, &arguments), nil
+}
+
+// arguments      → expression ( "," expression )* ;
 
 // primary        → "true" | "false" | "nil"
 //                | NUMBER | STRING

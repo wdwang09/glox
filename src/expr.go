@@ -58,10 +58,10 @@ func (expr *Binary) Accept(visitor exprVisitor) (interface{}, error) {
 type Call struct {
 	callee    Expr
 	paren     *Token
-	arguments []Expr
+	arguments *[]Expr
 }
 
-func NewCall(callee Expr, paren *Token, arguments []Expr) *Call {
+func NewCall(callee Expr, paren *Token, arguments *[]Expr) *Call {
 	expr := new(Call)
 	expr.callee = callee
 	expr.paren = paren

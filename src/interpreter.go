@@ -6,12 +6,16 @@ import (
 )
 
 type Interpreter struct {
+	globals     *Environment
 	environment *Environment
 }
 
 func NewInterpreter() *Interpreter {
+	environment := NewEnvironment(nil)
+	_ = environment.define("clock", NewClockLoxFunction())
 	return &Interpreter{
-		environment: NewEnvironment(nil),
+		globals:     environment,
+		environment: environment,
 	}
 }
 
@@ -23,9 +27,9 @@ func (s *Interpreter) InterpretExpressionForTest(expr Expr) (interface{}, error)
 	return value, err
 }
 
-func (s *Interpreter) Interpret(statements []Stmt) (interface{}, error) {
+func (s *Interpreter) Interpret(statements *[]Stmt) (interface{}, error) {
 	var value interface{}
-	for _, stmt := range statements {
+	for _, stmt := range *statements {
 		var err error
 		value, err = s.execute(stmt)
 		if err != nil {
@@ -57,7 +61,7 @@ func (s *Interpreter) Stringify(obj interface{}) string {
 // =====
 
 func (s *Interpreter) visitBlockStmt(stmt *Block) (interface{}, error) {
-	err := s.executeBlock(stmt.statements, NewEnvironment(s.environment))
+	err := s.ExecuteBlock(stmt.statements, NewEnvironment(s.environment))
 	return nil, err
 }
 
@@ -71,8 +75,8 @@ func (s *Interpreter) visitExpressionStmt(stmt *Expression) (interface{}, error)
 }
 
 func (s *Interpreter) visitFunctionStmt(stmt *Function) (interface{}, error) {
-	// TODO implement me
-	panic("implement me")
+	function := NewLoxFunction(stmt, s.environment)
+	return nil, s.environment.define(stmt.name.lexeme, function)
 }
 
 func (s *Interpreter) visitIfStmt(stmt *If) (interface{}, error) {
@@ -98,8 +102,15 @@ func (s *Interpreter) visitPrintStmt(stmt *Print) (interface{}, error) {
 }
 
 func (s *Interpreter) visitReturnStmt(stmt *Return) (interface{}, error) {
-	// TODO implement me
-	panic("implement me")
+	var value interface{}
+	var err error
+	if stmt.value != nil {
+		value, err = s.evaluate(stmt.value)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return nil, NewReturnPseudoError(value)
 }
 
 func (s *Interpreter) visitVarStmt(stmt *Var) (interface{}, error) {
@@ -111,8 +122,7 @@ func (s *Interpreter) visitVarStmt(stmt *Var) (interface{}, error) {
 			return nil, err
 		}
 	}
-	s.environment.define(stmt.name.lexeme, value)
-	return nil, nil
+	return nil, s.environment.define(stmt.name.lexeme, value)
 }
 
 func (s *Interpreter) visitWhileStmt(stmt *While) (interface{}, error) {
@@ -134,10 +144,10 @@ func (s *Interpreter) visitWhileStmt(stmt *While) (interface{}, error) {
 
 // =====
 
-func (s *Interpreter) executeBlock(statements []Stmt, environment *Environment) (err error) {
+func (s *Interpreter) ExecuteBlock(statements *[]Stmt, environment *Environment) (err error) {
 	previous := s.environment
 	s.environment = environment
-	for _, statement := range statements {
+	for _, statement := range *statements {
 		_, err = s.execute(statement)
 		if err != nil {
 			break
@@ -234,8 +244,31 @@ func (s *Interpreter) visitBinaryExpr(expr *Binary) (interface{}, error) {
 }
 
 func (s *Interpreter) visitCallExpr(expr *Call) (interface{}, error) {
-	// TODO implement me
-	panic("implement me")
+	callee, err := s.evaluate(expr.callee)
+	if err != nil {
+		return nil, err
+	}
+	var arguments []interface{}
+	for _, argument := range *expr.arguments {
+		expr, err := s.evaluate(argument)
+		if err != nil {
+			return nil, err
+		}
+		arguments = append(arguments, expr)
+	}
+
+	// TODO: !!!
+	// {interface{} | *glox.LoxFunction}
+	// {interface{} | func() *glox.clockLoxFunction}
+	if function, ok := callee.(LoxCallable); ok {
+		if len(arguments) != function.arity() {
+			return nil, NewRuntimeError(expr.paren,
+				fmt.Sprintf("Expected %v arguments but got %v.", function.arity(), len(arguments)))
+		}
+		return function.call(s, &arguments)
+	} else {
+		return nil, NewRuntimeError(expr.paren, "Can only call functions and classes.")
+	}
 }
 
 func (s *Interpreter) visitGetExpr(expr *Get) (interface{}, error) {

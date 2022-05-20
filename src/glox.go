@@ -50,8 +50,15 @@ func (s *Glox) run(source string) int {
 		_, _ = fmt.Fprintln(os.Stderr, "[Scanner]", err.Error())
 		return 1
 	}
-	fmt.Print("[Scanner] ")
+	currentLine := 0
 	for _, token := range tokens {
+		if token.line != currentLine {
+			if currentLine != 0 {
+				fmt.Println()
+			}
+			currentLine = token.line
+			fmt.Print(fmt.Sprintf("[Scanner | %v] ", currentLine))
+		}
 		// fmt.Println(token.String())
 		fmt.Print(token.Lexeme())
 		fmt.Print(" | ")
@@ -61,7 +68,6 @@ func (s *Glox) run(source string) int {
 	// Parser
 	parser := NewParser(tokens)
 	statements, err := parser.Parse()
-	// expression, err := parser.Parse()
 	if err != nil {
 		_, _ = fmt.Fprintln(os.Stderr, "[Parser]", err.Error())
 		return 1
@@ -73,7 +79,7 @@ func (s *Glox) run(source string) int {
 
 	// Interpreter
 	// err = s.interpreter.Interpret(statements)
-	value, err := s.interpreter.Interpret(statements)
+	value, err := s.interpreter.Interpret(&statements)
 	if err != nil {
 		_, _ = fmt.Fprintln(os.Stderr, "[Interpreter]", err.Error())
 		return 1

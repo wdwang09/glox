@@ -117,7 +117,7 @@ func (s *Scanner) scanToken() error {
 	return nil
 }
 
-func (s *Scanner) advance() uint8 {
+func (s *Scanner) advance() byte {
 	ch := s.source[s.current]
 	s.current++
 	return ch
@@ -132,7 +132,7 @@ func (s *Scanner) addTokenLiteral(tokenType TokenType, literal interface{}) {
 	s.tokens = append(s.tokens, NewToken(tokenType, text, literal, s.line))
 }
 
-func (s *Scanner) match(expected uint8) bool {
+func (s *Scanner) match(expected byte) bool {
 	if s.isAtEnd() || s.source[s.current] != expected {
 		return false
 	}
@@ -140,7 +140,7 @@ func (s *Scanner) match(expected uint8) bool {
 	return true
 }
 
-func (s *Scanner) peek() uint8 {
+func (s *Scanner) peek() byte {
 	if s.isAtEnd() {
 		return 0
 	}
@@ -164,7 +164,7 @@ func (s *Scanner) string() error {
 	return nil
 }
 
-func isDigit(ch uint8) bool {
+func isDigit(ch byte) bool {
 	return ch >= '0' && ch <= '9'
 }
 
@@ -182,18 +182,18 @@ func (s *Scanner) number() {
 	s.addTokenLiteral(NUMBER, num)
 }
 
-func (s *Scanner) peekNext() uint8 {
+func (s *Scanner) peekNext() byte {
 	if s.current+1 >= len(s.source) {
 		return 0
 	}
 	return s.source[s.current+1]
 }
 
-func isAlpha(ch uint8) bool {
+func isAlpha(ch byte) bool {
 	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch == '_')
 }
 
-func iSAlphaNumeric(ch uint8) bool {
+func iSAlphaNumeric(ch byte) bool {
 	return isDigit(ch) || isAlpha(ch)
 }
 

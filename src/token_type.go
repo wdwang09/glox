@@ -58,7 +58,7 @@ const (
 	EOF
 )
 
-// ================
+// =====
 
 var singletonTokenMap map[string]TokenType
 var singletonTokenMapOnce sync.Once

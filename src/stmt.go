@@ -19,10 +19,10 @@ type stmtVisitor interface {
 }
 
 type Block struct {
-	statements []Stmt
+	statements *[]Stmt
 }
 
-func NewBlock(statements []Stmt) *Block {
+func NewBlock(statements *[]Stmt) *Block {
 	stmt := new(Block)
 	stmt.statements = statements
 	return stmt
@@ -66,11 +66,11 @@ func (stmt *Expression) Accept(visitor stmtVisitor) (interface{}, error) {
 
 type Function struct {
 	name   *Token
-	params []Token
-	body   []Stmt
+	params *[]*Token
+	body   *[]Stmt
 }
 
-func NewFunction(name *Token, params []Token, body []Stmt) *Function {
+func NewFunction(name *Token, params *[]*Token, body *[]Stmt) *Function {
 	stmt := new(Function)
 	stmt.name = name
 	stmt.params = params

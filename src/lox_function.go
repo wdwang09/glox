@@ -28,7 +28,7 @@ func (s *LoxFunction) arity() int {
 func (s *LoxFunction) call(interpreter *Interpreter, arguments *[]interface{}) (interface{}, error) {
 	environment := NewEnvironment(s.closure)
 	for i, param := range *s.declaration.params {
-		err := environment.define(param.lexeme, (*arguments)[i])
+		err := environment.Define(param.lexeme, (*arguments)[i])
 		if err != nil {
 			return nil, err
 		}

@@ -3,20 +3,22 @@ package glox
 import "strconv"
 
 type Scanner struct {
-	source  string
-	tokens  []*Token
-	start   int
-	current int
-	line    int
+	tokenMap *map[string]TokenType
+	source   string
+	tokens   []*Token
+	start    int
+	current  int
+	line     int
 }
 
-func NewScanner(source string) *Scanner {
+func NewScanner(tokenMap *map[string]TokenType, source string) *Scanner {
 	return &Scanner{
-		source:  source,
-		tokens:  []*Token{},
-		start:   0,
-		current: 0,
-		line:    1,
+		tokenMap: tokenMap,
+		source:   source,
+		tokens:   []*Token{},
+		start:    0,
+		current:  0,
+		line:     1,
 	}
 }
 
@@ -28,7 +30,7 @@ func (s *Scanner) ScanTokens() ([]*Token, error) {
 			return nil, err
 		}
 	}
-	s.tokens = append(s.tokens, NewToken(EOF, "", nil, s.line))
+	s.tokens = append(s.tokens, NewToken(TokenEof, "", nil, s.line))
 	return s.tokens, nil
 }
 
@@ -40,49 +42,49 @@ func (s *Scanner) scanToken() error {
 	ch := s.advance()
 	switch ch {
 	case '(':
-		s.addToken(LEFT_PAREN)
+		s.addToken(TokenLeftParen)
 	case ')':
-		s.addToken(RIGHT_PAREN)
+		s.addToken(TokenRightParen)
 	case '{':
-		s.addToken(LEFT_BRACE)
+		s.addToken(TokenLeftBrace)
 	case '}':
-		s.addToken(RIGHT_BRACE)
+		s.addToken(TokenRightBrace)
 	case ',':
-		s.addToken(COMMA)
+		s.addToken(TokenComma)
 	case '.':
-		s.addToken(DOT)
+		s.addToken(TokenDot)
 	case '-':
-		s.addToken(MINUS)
+		s.addToken(TokenMinus)
 	case '+':
-		s.addToken(PLUS)
+		s.addToken(TokenPlus)
 	case ';':
-		s.addToken(SEMICOLON)
+		s.addToken(TokenSemicolon)
 	case '*':
-		s.addToken(STAR)
+		s.addToken(TokenStar)
 
 	case '!':
 		if s.match('=') {
-			s.addToken(BANG_EQUAL)
+			s.addToken(TokenBangEqual)
 		} else {
-			s.addToken(BANG)
+			s.addToken(TokenBang)
 		}
 	case '=':
 		if s.match('=') {
-			s.addToken(EQUAL_EQUAL)
+			s.addToken(TokenEqualEqual)
 		} else {
-			s.addToken(EQUAL)
+			s.addToken(TokenEqual)
 		}
 	case '<':
 		if s.match('=') {
-			s.addToken(LESS_EQUAL)
+			s.addToken(TokenLessEqual)
 		} else {
-			s.addToken(LESS)
+			s.addToken(TokenLess)
 		}
 	case '>':
 		if s.match('=') {
-			s.addToken(GREATER_EQUAL)
+			s.addToken(TokenGreaterEqual)
 		} else {
-			s.addToken(GREATER)
+			s.addToken(TokenGreater)
 		}
 
 	case '/':
@@ -91,7 +93,7 @@ func (s *Scanner) scanToken() error {
 				s.advance()
 			}
 		} else {
-			s.addToken(SLASH)
+			s.addToken(TokenSlash)
 		}
 
 	case ' ', '\r', '\t':
@@ -160,7 +162,7 @@ func (s *Scanner) string() error {
 	}
 
 	s.advance()
-	s.addTokenLiteral(STRING, s.source[s.start+1:s.current-1])
+	s.addTokenLiteral(TokenString, s.source[s.start+1:s.current-1])
 	return nil
 }
 
@@ -179,7 +181,7 @@ func (s *Scanner) number() {
 		}
 	}
 	num, _ := strconv.ParseFloat(s.source[s.start:s.current], 64)
-	s.addTokenLiteral(NUMBER, num)
+	s.addTokenLiteral(TokenNumber, num)
 }
 
 func (s *Scanner) peekNext() byte {
@@ -203,9 +205,9 @@ func (s *Scanner) identifier() {
 	}
 
 	text := s.source[s.start:s.current]
-	tokenType, exist := GetTokenMap()[text]
+	tokenType, exist := (*s.tokenMap)[text]
 	if !exist {
-		tokenType = IDENTIFIER
+		tokenType = TokenIdentifier
 	}
 	s.addToken(tokenType)
 }

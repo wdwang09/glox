@@ -21,8 +21,9 @@ func initLoxCodeNumTestCase() {
 
 func TestScanner(t *testing.T) {
 	initLoxCodeNumTestCase()
+	tokenMap := glox.NewTokenMap()
 	for code, num := range loxCodeNum {
-		scanner := glox.NewScanner(code)
+		scanner := glox.NewScanner(tokenMap, code)
 		tokens, err := scanner.ScanTokens()
 		if err != nil {
 			t.Fatal(err.Error())

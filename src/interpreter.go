@@ -8,14 +8,16 @@ import (
 type Interpreter struct {
 	globals     *Environment
 	environment *Environment
+	locals      map[Expr]int
 }
 
 func NewInterpreter() *Interpreter {
 	environment := NewEnvironment(nil)
-	_ = environment.define("clock", NewClockLoxFunction())
+	_ = environment.Define("clock", NewClockLoxFunction())
 	return &Interpreter{
 		globals:     environment,
 		environment: environment,
+		locals:      map[Expr]int{},
 	}
 }
 
@@ -76,7 +78,7 @@ func (s *Interpreter) visitExpressionStmt(stmt *Expression) (interface{}, error)
 
 func (s *Interpreter) visitFunctionStmt(stmt *Function) (interface{}, error) {
 	function := NewLoxFunction(stmt, s.environment)
-	return nil, s.environment.define(stmt.name.lexeme, function)
+	return nil, s.environment.Define(stmt.name.lexeme, function)
 }
 
 func (s *Interpreter) visitIfStmt(stmt *If) (interface{}, error) {
@@ -122,7 +124,7 @@ func (s *Interpreter) visitVarStmt(stmt *Var) (interface{}, error) {
 			return nil, err
 		}
 	}
-	return nil, s.environment.define(stmt.name.lexeme, value)
+	return nil, s.environment.Define(stmt.name.lexeme, value)
 }
 
 func (s *Interpreter) visitWhileStmt(stmt *While) (interface{}, error) {
@@ -168,7 +170,18 @@ func (s *Interpreter) visitAssignExpr(expr *Assign) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = s.environment.assign(expr.name, value)
+
+	// err = s.environment.Assign(expr.name, value)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// return value, nil
+
+	if distance, ok := s.locals[expr]; ok {
+		err = s.environment.AssignAt(distance, expr.name, value)
+	} else {
+		err = s.globals.Assign(expr.name, value)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -185,53 +198,53 @@ func (s *Interpreter) visitBinaryExpr(expr *Binary) (interface{}, error) {
 		return nil, err
 	}
 	switch expr.operator.tokenType {
-	case GREATER:
+	case TokenGreater:
 		err = s.checkNumberOperands(expr.operator, left, right)
 		if err != nil {
 			return nil, err
 		}
 		return left.(float64) > right.(float64), nil
-	case GREATER_EQUAL:
+	case TokenGreaterEqual:
 		err = s.checkNumberOperands(expr.operator, left, right)
 		if err != nil {
 			return nil, err
 		}
 		return left.(float64) >= right.(float64), nil
-	case LESS:
+	case TokenLess:
 		err = s.checkNumberOperands(expr.operator, left, right)
 		if err != nil {
 			return nil, err
 		}
 		return left.(float64) < right.(float64), nil
-	case LESS_EQUAL:
+	case TokenLessEqual:
 		err = s.checkNumberOperands(expr.operator, left, right)
 		if err != nil {
 			return nil, err
 		}
 		return left.(float64) <= right.(float64), nil
-	case BANG_EQUAL:
+	case TokenBangEqual:
 		return !s.isEqual(left, right), nil
-	case EQUAL_EQUAL:
+	case TokenEqualEqual:
 		return s.isEqual(left, right), nil
-	case MINUS:
+	case TokenMinus:
 		err = s.checkNumberOperands(expr.operator, left, right)
 		if err != nil {
 			return nil, err
 		}
 		return left.(float64) - right.(float64), nil
-	case SLASH:
+	case TokenSlash:
 		err = s.checkNumberOperands(expr.operator, left, right)
 		if err != nil {
 			return nil, err
 		}
 		return left.(float64) / right.(float64), nil
-	case STAR:
+	case TokenStar:
 		err = s.checkNumberOperands(expr.operator, left, right)
 		if err != nil {
 			return nil, err
 		}
 		return left.(float64) * right.(float64), nil
-	case PLUS:
+	case TokenPlus:
 		if isFloat64(left) && isFloat64(right) {
 			return left.(float64) + right.(float64), nil
 		}
@@ -256,10 +269,6 @@ func (s *Interpreter) visitCallExpr(expr *Call) (interface{}, error) {
 		}
 		arguments = append(arguments, expr)
 	}
-
-	// TODO: !!!
-	// {interface{} | *glox.LoxFunction}
-	// {interface{} | func() *glox.clockLoxFunction}
 	if function, ok := callee.(LoxCallable); ok {
 		if len(arguments) != function.arity() {
 			return nil, NewRuntimeError(expr.paren,
@@ -289,7 +298,7 @@ func (s *Interpreter) visitLogicalExpr(expr *Logical) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	if expr.operator.tokenType == OR {
+	if expr.operator.tokenType == TokenOr {
 		if s.isTruthy(left) {
 			return left, nil
 		}
@@ -320,9 +329,9 @@ func (s *Interpreter) visitUnaryExpr(expr *Unary) (interface{}, error) {
 		return nil, err
 	}
 	switch expr.operator.tokenType {
-	case BANG:
+	case TokenBang:
 		return !s.isTruthy(right), nil
-	case MINUS:
+	case TokenMinus:
 		err = s.checkNumberOperands(expr.operator, right)
 		if err != nil {
 			return nil, err
@@ -333,8 +342,25 @@ func (s *Interpreter) visitUnaryExpr(expr *Unary) (interface{}, error) {
 }
 
 func (s *Interpreter) visitVariableExpr(expr *Variable) (interface{}, error) {
-	return s.environment.get(expr.name)
+	// return s.environment.Get(expr.name)
+	return s.lookUpVariable(expr.name, expr)
 }
+
+// ====
+
+func (s *Interpreter) Resolve(expr Expr, depth int) {
+	s.locals[expr] = depth
+}
+
+func (s *Interpreter) lookUpVariable(name *Token, expr Expr) (interface{}, error) {
+	if distance, ok := s.locals[expr]; ok {
+		return s.environment.GetAt(distance, name)
+	} else {
+		return s.globals.Get(name)
+	}
+}
+
+// =====
 
 func (s *Interpreter) isTruthy(obj interface{}) bool {
 	if obj == nil {

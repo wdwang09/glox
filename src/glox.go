@@ -7,11 +7,15 @@ import (
 )
 
 type Glox struct {
+	tokenMap    *map[string]TokenType
 	interpreter *Interpreter
 }
 
 func NewGlox() *Glox {
-	return &Glox{interpreter: NewInterpreter()}
+	return &Glox{
+		tokenMap:    NewTokenMap(),
+		interpreter: NewInterpreter(),
+	}
 }
 
 func (s *Glox) RunFile(path string) int {
@@ -44,7 +48,7 @@ func (s *Glox) RunPrompt() int {
 
 func (s *Glox) run(source string) int {
 	// Scanner
-	scanner := NewScanner(source)
+	scanner := NewScanner(s.tokenMap, source)
 	tokens, err := scanner.ScanTokens()
 	if err != nil {
 		_, _ = fmt.Fprintln(os.Stderr, "[Scanner]", err.Error())
@@ -66,7 +70,7 @@ func (s *Glox) run(source string) int {
 	fmt.Println()
 
 	// Parser
-	parser := NewParser(tokens)
+	parser := NewParser(&tokens)
 	statements, err := parser.Parse()
 	if err != nil {
 		_, _ = fmt.Fprintln(os.Stderr, "[Parser]", err.Error())
@@ -76,6 +80,14 @@ func (s *Glox) run(source string) int {
 	// AST Printer
 	// astPrinter := NewAstPrinter()
 	// fmt.Println(astPrinter.Print(expression))
+
+	// Resolver
+	resolver := NewResolver(s.interpreter)
+	err = resolver.ResolveStatements(&statements)
+	if err != nil {
+		_, _ = fmt.Fprintln(os.Stderr, "[Resolver]", err.Error())
+		return 1
+	}
 
 	// Interpreter
 	// err = s.interpreter.Interpret(statements)

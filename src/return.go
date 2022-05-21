@@ -11,5 +11,5 @@ func NewReturnPseudoError(value interface{}) *ReturnPseudoError {
 }
 
 func (s *ReturnPseudoError) Error() string {
-	return "Return pseudo-error."
+	return "If you see this in console, it means that one return occurs outside a function."
 }

@@ -42,13 +42,14 @@ func initExpressionAstTestCase() {
 
 func TestParser(t *testing.T) {
 	initExpressionAstTestCase()
+	tokenMap := glox.NewTokenMap()
 	for code, astExpectation := range expressionAst {
-		scanner := glox.NewScanner(code)
+		scanner := glox.NewScanner(tokenMap, code)
 		tokens, err := scanner.ScanTokens()
 		if err != nil {
 			t.Fatal(err.Error())
 		}
-		parser := glox.NewParser(tokens)
+		parser := glox.NewParser(&tokens)
 		expression, err := parser.ParseExpressionForTest()
 		if err != nil {
 			t.Fatal(err.Error())

@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestState(t *testing.T) {
+func TestPassFail(t *testing.T) {
 	walkError := filepath.Walk("testdata", func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			t.Fatal(err)
@@ -17,13 +17,13 @@ func TestState(t *testing.T) {
 			if info.Name()[len(info.Name())-4:] != ".lox" {
 				return nil
 			}
-			shouldSuccess := !strings.Contains(info.Name(), "error")
+			shouldPass := !strings.Contains(info.Name(), "error")
 			interpreter := glox.NewGlox()
 			returnCode := interpreter.RunFile(path)
-			if shouldSuccess && returnCode != 0 {
-				t.Fatalf("file '%v' should success, but fail", path)
-			} else if !shouldSuccess && returnCode == 0 {
-				t.Fatalf("file '%v' should fail, but success", path)
+			if shouldPass && returnCode != 0 {
+				t.Fatalf("file '%v' should pass, but fail", path)
+			} else if !shouldPass && returnCode == 0 {
+				t.Fatalf("file '%v' should fail, but pass", path)
 			}
 		}
 		return err

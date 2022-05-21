@@ -3,11 +3,11 @@ package glox
 // TODO: Parser遇到空行时会出问题
 
 type Parser struct {
-	tokens  []*Token
+	tokens  *[]*Token
 	current int
 }
 
-func NewParser(tokens []*Token) *Parser {
+func NewParser(tokens *[]*Token) *Parser {
 	return &Parser{
 		tokens:  tokens,
 		current: 0,
@@ -35,14 +35,14 @@ func (s *Parser) Parse() ([]Stmt, error) {
 
 func (s *Parser) block() ([]Stmt, error) {
 	var statements []Stmt
-	for !s.check(RIGHT_BRACE) && !s.isAtEnd() {
+	for !s.check(TokenRightBrace) && !s.isAtEnd() {
 		stmt, err := s.declaration()
 		if err != nil {
 			return nil, err
 		}
 		statements = append(statements, stmt)
 	}
-	_, err := s.consume(RIGHT_BRACE, "Expect '}' after block.")
+	_, err := s.consume(TokenRightBrace, "Expect '}' after block.")
 	if err != nil {
 		return nil, err
 	} else {
@@ -54,10 +54,10 @@ func (s *Parser) block() ([]Stmt, error) {
 //                | varDecl
 //                | statement ;
 func (s *Parser) declaration() (Stmt, error) {
-	if s.match(FUN) {
+	if s.match(TokenFun) {
 		return s.function("function")
 	}
-	if s.match(VAR) {
+	if s.match(TokenVar) {
 		stmt, err := s.varDeclaration()
 		// other methods: https://go.dev/blog/go1.13-errors
 		if _, ok := err.(*ParserError); ok {
@@ -81,38 +81,38 @@ func (s *Parser) declaration() (Stmt, error) {
 // funDecl        → "fun" function ;
 // function       → IDENTIFIER "(" parameters? ")" block ;
 func (s *Parser) function(kind string) (*Function, error) {
-	funcName, err := s.consume(IDENTIFIER, "Expect "+kind+" name.")
+	funcName, err := s.consume(TokenIdentifier, "Expect "+kind+" name.")
 	if err != nil {
 		return nil, err
 	}
-	_, err = s.consume(LEFT_PAREN, "Expect '(' after "+kind+" name.")
+	_, err = s.consume(TokenLeftParen, "Expect '(' after "+kind+" name.")
 	if err != nil {
 		return nil, err
 	}
 	var parameters []*Token
-	if !s.check(RIGHT_PAREN) {
+	if !s.check(TokenRightParen) {
 		for {
 			// if len(parameters) >= 255 {
 			// 	return nil, NewParserError(s.peek(), "Can't have more than 255 arguments.")
 			// }
 
-			parameterName, err := s.consume(IDENTIFIER, "Expect parameter name.")
+			parameterName, err := s.consume(TokenIdentifier, "Expect parameter name.")
 			if err != nil {
 				return nil, err
 			}
 			parameters = append(parameters, parameterName)
 
-			if !s.match(COMMA) {
+			if !s.match(TokenComma) {
 				break
 			}
 		}
 	}
-	_, err = s.consume(RIGHT_PAREN, "Expect ')' after parameters.")
+	_, err = s.consume(TokenRightParen, "Expect ')' after parameters.")
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = s.consume(LEFT_BRACE, "Expect '{' before "+kind+" body.")
+	_, err = s.consume(TokenLeftBrace, "Expect '{' before "+kind+" body.")
 	if err != nil {
 		return nil, err
 	}
@@ -128,18 +128,18 @@ func (s *Parser) function(kind string) (*Function, error) {
 
 // varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
 func (s *Parser) varDeclaration() (Stmt, error) {
-	name, err := s.consume(IDENTIFIER, "Expect variable name.")
+	name, err := s.consume(TokenIdentifier, "Expect variable name.")
 	if err != nil {
 		return nil, err
 	}
 	var initializer Expr = nil
-	if s.match(EQUAL) {
+	if s.match(TokenEqual) {
 		initializer, err = s.expression()
 		if err != nil {
 			return nil, err
 		}
 	}
-	_, err = s.consume(SEMICOLON, "Expect ';' after variable declaration.")
+	_, err = s.consume(TokenSemicolon, "Expect ';' after variable declaration.")
 	if err != nil {
 		return nil, err
 	}
@@ -154,22 +154,22 @@ func (s *Parser) varDeclaration() (Stmt, error) {
 //                | whileStmt
 //                | block ;
 func (s *Parser) statement() (Stmt, error) {
-	if s.match(FOR) {
+	if s.match(TokenFor) {
 		return s.forStatement()
 	}
-	if s.match(IF) {
+	if s.match(TokenIf) {
 		return s.ifStatement()
 	}
-	if s.match(PRINT) {
+	if s.match(TokenPrint) {
 		return s.printStatement()
 	}
-	if s.match(RETURN) {
+	if s.match(TokenReturn) {
 		return s.returnStatement()
 	}
-	if s.match(WHILE) {
+	if s.match(TokenWhile) {
 		return s.whileStatement()
 	}
-	if s.match(LEFT_BRACE) {
+	if s.match(TokenLeftBrace) {
 		stmts, err := s.block()
 		if err != nil {
 			return nil, err
@@ -185,7 +185,7 @@ func (s *Parser) expressionStatement() (Stmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, err = s.consume(SEMICOLON, "Expect ';' after expression.")
+	_, err = s.consume(TokenSemicolon, "Expect ';' after expression.")
 	return NewExpression(expr), nil
 }
 
@@ -195,7 +195,7 @@ func (s *Parser) printStatement() (Stmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, err = s.consume(SEMICOLON, "Expect ';' after value.")
+	_, err = s.consume(TokenSemicolon, "Expect ';' after value.")
 	return NewPrint(value), nil
 }
 
@@ -203,15 +203,15 @@ func (s *Parser) printStatement() (Stmt, error) {
 //                 expression? ";"
 //                 expression? ")" statement ;
 func (s *Parser) forStatement() (Stmt, error) {
-	_, err := s.consume(LEFT_PAREN, "Expect '(' after 'for'.")
+	_, err := s.consume(TokenLeftParen, "Expect '(' after 'for'.")
 	if err != nil {
 		return nil, err
 	}
 
 	var initializer Stmt
-	if s.match(SEMICOLON) {
+	if s.match(TokenSemicolon) {
 		initializer = nil
-	} else if s.match(VAR) {
+	} else if s.match(TokenVar) {
 		initializer, err = s.varDeclaration()
 		if err != nil {
 			return nil, err
@@ -224,25 +224,25 @@ func (s *Parser) forStatement() (Stmt, error) {
 	}
 
 	var condition Expr
-	if !s.check(SEMICOLON) {
+	if !s.check(TokenSemicolon) {
 		condition, err = s.expression()
 		if err != nil {
 			return nil, err
 		}
 	}
-	_, err = s.consume(SEMICOLON, "Expect ';' after for condition.")
+	_, err = s.consume(TokenSemicolon, "Expect ';' after for condition.")
 	if err != nil {
 		return nil, err
 	}
 
 	var increment Expr
-	if !s.check(RIGHT_PAREN) {
+	if !s.check(TokenRightParen) {
 		increment, err = s.expression()
 		if err != nil {
 			return nil, err
 		}
 	}
-	_, err = s.consume(RIGHT_PAREN, "Expect ')' after for clauses.")
+	_, err = s.consume(TokenRightParen, "Expect ')' after for clauses.")
 	if err != nil {
 		return nil, err
 	}
@@ -277,7 +277,7 @@ func (s *Parser) forStatement() (Stmt, error) {
 // ifStmt         → "if" "(" expression ")" statement
 //               ( "else" statement )? ;
 func (s *Parser) ifStatement() (Stmt, error) {
-	_, err := s.consume(LEFT_PAREN, "Expect '(' after 'if'.")
+	_, err := s.consume(TokenLeftParen, "Expect '(' after 'if'.")
 	if err != nil {
 		return nil, err
 	}
@@ -285,7 +285,7 @@ func (s *Parser) ifStatement() (Stmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, err = s.consume(RIGHT_PAREN, "Expect ')' after if condition.")
+	_, err = s.consume(TokenRightParen, "Expect ')' after if condition.")
 	if err != nil {
 		return nil, err
 	}
@@ -294,7 +294,7 @@ func (s *Parser) ifStatement() (Stmt, error) {
 		return nil, err
 	}
 	var elseBranch Stmt
-	if s.match(ELSE) {
+	if s.match(TokenElse) {
 		elseBranch, err = s.statement()
 		if err != nil {
 			return nil, err
@@ -305,7 +305,7 @@ func (s *Parser) ifStatement() (Stmt, error) {
 
 // whileStmt      → "while" "(" expression ")" statement ;
 func (s *Parser) whileStatement() (Stmt, error) {
-	_, err := s.consume(LEFT_PAREN, "Expect '(' after 'while'.")
+	_, err := s.consume(TokenLeftParen, "Expect '(' after 'while'.")
 	if err != nil {
 		return nil, err
 	}
@@ -313,7 +313,7 @@ func (s *Parser) whileStatement() (Stmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, err = s.consume(RIGHT_PAREN, "Expect ')' after while condition.")
+	_, err = s.consume(TokenRightParen, "Expect ')' after while condition.")
 	if err != nil {
 		return nil, err
 	}
@@ -329,13 +329,13 @@ func (s *Parser) returnStatement() (Stmt, error) {
 	keyword := s.previous()
 	var value Expr
 	var err error
-	if !s.check(SEMICOLON) {
+	if !s.check(TokenSemicolon) {
 		value, err = s.expression()
 		if err != nil {
 			return nil, err
 		}
 	}
-	_, err = s.consume(SEMICOLON, "Expect ';' after return value.")
+	_, err = s.consume(TokenSemicolon, "Expect ';' after return value.")
 	if err != nil {
 		return nil, err
 	}
@@ -357,7 +357,7 @@ func (s *Parser) assignment() (Expr, error) {
 	if err != nil {
 		return nil, err
 	}
-	if s.match(EQUAL) {
+	if s.match(TokenEqual) {
 		equals := s.previous()
 		value, err := s.assignment()
 		if err != nil {
@@ -378,7 +378,7 @@ func (s *Parser) or() (Expr, error) {
 	if err != nil {
 		return nil, err
 	}
-	for s.match(OR) {
+	for s.match(TokenOr) {
 		operator := s.previous()
 		right, err := s.and()
 		if err != nil {
@@ -395,7 +395,7 @@ func (s *Parser) and() (Expr, error) {
 	if err != nil {
 		return nil, err
 	}
-	for s.match(AND) {
+	for s.match(TokenAnd) {
 		operator := s.previous()
 		right, err := s.equality()
 		if err != nil {
@@ -412,7 +412,7 @@ func (s *Parser) equality() (Expr, error) {
 	if err != nil {
 		return nil, err
 	}
-	for s.match(BANG_EQUAL, EQUAL_EQUAL) {
+	for s.match(TokenBangEqual, TokenEqualEqual) {
 		operator := s.previous()
 		right, err := s.comparison()
 		if err != nil {
@@ -429,7 +429,7 @@ func (s *Parser) comparison() (Expr, error) {
 	if err != nil {
 		return nil, err
 	}
-	for s.match(GREATER, GREATER_EQUAL, LESS, LESS_EQUAL) {
+	for s.match(TokenGreater, TokenGreaterEqual, TokenLess, TokenLessEqual) {
 		operator := s.previous()
 		right, err := s.term()
 		if err != nil {
@@ -446,7 +446,7 @@ func (s *Parser) term() (Expr, error) {
 	if err != nil {
 		return nil, err
 	}
-	for s.match(MINUS, PLUS) {
+	for s.match(TokenMinus, TokenPlus) {
 		operator := s.previous()
 		right, err := s.factor()
 		if err != nil {
@@ -463,7 +463,7 @@ func (s *Parser) factor() (Expr, error) {
 	if err != nil {
 		return nil, err
 	}
-	for s.match(SLASH, STAR) {
+	for s.match(TokenSlash, TokenStar) {
 		operator := s.previous()
 		right, err := s.unary()
 		if err != nil {
@@ -476,7 +476,7 @@ func (s *Parser) factor() (Expr, error) {
 
 // unary          → ( "!" | "-" ) unary | call ;
 func (s *Parser) unary() (Expr, error) {
-	if s.match(BANG, MINUS) {
+	if s.match(TokenBang, TokenMinus) {
 		operator := s.previous()
 		right, err := s.unary()
 		if err != nil {
@@ -494,7 +494,7 @@ func (s *Parser) call() (Expr, error) {
 		return nil, err
 	}
 	for {
-		if s.match(LEFT_PAREN) {
+		if s.match(TokenLeftParen) {
 			expr, err = s.finishCall(expr)
 			if err != nil {
 				return nil, err
@@ -508,7 +508,7 @@ func (s *Parser) call() (Expr, error) {
 
 func (s *Parser) finishCall(callee Expr) (Expr, error) {
 	var arguments []Expr
-	if !s.check(RIGHT_PAREN) {
+	if !s.check(TokenRightParen) {
 		for {
 			// if len(arguments) >= 255 {
 			// 	return nil, NewParserError(s.peek(), "Can't have more than 255 arguments.")
@@ -520,12 +520,12 @@ func (s *Parser) finishCall(callee Expr) (Expr, error) {
 			}
 			arguments = append(arguments, expr)
 
-			if !s.match(COMMA) {
+			if !s.match(TokenComma) {
 				break
 			}
 		}
 	}
-	paren, err := s.consume(RIGHT_PAREN, "Expect ')' after arguments.")
+	paren, err := s.consume(TokenRightParen, "Expect ')' after arguments.")
 	if err != nil {
 		return nil, err
 	}
@@ -539,27 +539,27 @@ func (s *Parser) finishCall(callee Expr) (Expr, error) {
 //                | "(" expression ")"
 //                | IDENTIFIER ;
 func (s *Parser) primary() (Expr, error) {
-	if s.match(NUMBER, STRING) {
+	if s.match(TokenNumber, TokenString) {
 		return NewLiteral(s.previous().literal), nil
 	}
-	if s.match(TRUE) {
+	if s.match(TokenTrue) {
 		return NewLiteral(true), nil
 	}
-	if s.match(FALSE) {
+	if s.match(TokenFalse) {
 		return NewLiteral(false), nil
 	}
-	if s.match(NIL) {
+	if s.match(TokenNil) {
 		return NewLiteral(nil), nil
 	}
-	if s.match(IDENTIFIER) {
+	if s.match(TokenIdentifier) {
 		return NewVariable(s.previous()), nil
 	}
-	if s.match(LEFT_PAREN) {
+	if s.match(TokenLeftParen) {
 		expr, err := s.expression()
 		if err != nil {
 			return nil, err
 		}
-		_, err = s.consume(RIGHT_PAREN, "Expect ')' after expression.")
+		_, err = s.consume(TokenRightParen, "Expect ')' after expression.")
 		if err != nil {
 			return nil, err
 		}
@@ -593,15 +593,15 @@ func (s *Parser) advance() *Token {
 }
 
 func (s *Parser) isAtEnd() bool {
-	return s.peek().tokenType == EOF
+	return s.peek().tokenType == TokenEof
 }
 
 func (s *Parser) peek() *Token {
-	return s.tokens[s.current]
+	return (*s.tokens)[s.current]
 }
 
 func (s *Parser) previous() *Token {
-	return s.tokens[s.current-1]
+	return (*s.tokens)[s.current-1]
 }
 
 func (s *Parser) consume(tokenType TokenType, message string) (*Token, error) {
@@ -614,18 +614,18 @@ func (s *Parser) consume(tokenType TokenType, message string) (*Token, error) {
 func (s *Parser) synchronize() {
 	s.advance()
 	for !s.isAtEnd() {
-		if s.previous().tokenType == SEMICOLON {
+		if s.previous().tokenType == TokenSemicolon {
 			return
 		}
 		switch s.peek().tokenType {
-		case CLASS:
-		case FUN:
-		case VAR:
-		case FOR:
-		case IF:
-		case WHILE:
-		case PRINT:
-		case RETURN:
+		case TokenClass:
+		case TokenFun:
+		case TokenVar:
+		case TokenFor:
+		case TokenIf:
+		case TokenWhile:
+		case TokenPrint:
+		case TokenReturn:
 			return
 		}
 		s.advance()

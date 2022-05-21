@@ -32,7 +32,7 @@ type ParserError struct {
 
 func (s *ParserError) Error() string {
 	where := "end"
-	if s.token.tokenType != EOF {
+	if s.token.tokenType != TokenEof {
 		where = "\"" + s.token.String() + "\""
 	}
 	return fmt.Sprintf("[line %v] Error at %v: %v\n",

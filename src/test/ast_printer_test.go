@@ -13,8 +13,8 @@ func initAstTestCase() {
 	var output string
 
 	expression = glox.NewBinary(
-		glox.NewUnary(glox.NewToken(glox.MINUS, "-", nil, 1), glox.NewLiteral(123)),
-		glox.NewToken(glox.STAR, "*", nil, 1),
+		glox.NewUnary(glox.NewToken(glox.TokenMinus, "-", nil, 1), glox.NewLiteral(123)),
+		glox.NewToken(glox.TokenStar, "*", nil, 1),
 		glox.NewGrouping(glox.NewLiteral(45.67)))
 	output = "(* (- 123) (group 45.67))"
 
@@ -24,9 +24,9 @@ func initAstTestCase() {
 	expression = glox.NewBinary(
 		glox.NewBinary(
 			glox.NewLiteral(123),
-			glox.NewToken(glox.PLUS, "+", nil, 1),
+			glox.NewToken(glox.TokenPlus, "+", nil, 1),
 			glox.NewLiteral(45.67)),
-		glox.NewToken(glox.SLASH, "/", nil, 1),
+		glox.NewToken(glox.TokenSlash, "/", nil, 1),
 		glox.NewLiteral(8.9))
 	output = "(/ (+ 123 45.67) 8.9)"
 

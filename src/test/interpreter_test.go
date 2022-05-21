@@ -45,13 +45,14 @@ func initExpressionValueTestCase() {
 
 func TestInterpreter(t *testing.T) {
 	initExpressionValueTestCase()
+	tokenMap := glox.NewTokenMap()
 	for code, valueExpectation := range expressionValue {
-		scanner := glox.NewScanner(code)
+		scanner := glox.NewScanner(tokenMap, code)
 		tokens, err := scanner.ScanTokens()
 		if err != nil {
 			t.Fatal(err.Error())
 		}
-		parser := glox.NewParser(tokens)
+		parser := glox.NewParser(&tokens)
 		expression, err := parser.ParseExpressionForTest()
 		if err != nil {
 			t.Fatal(err.Error())

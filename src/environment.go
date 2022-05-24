@@ -14,21 +14,21 @@ func NewEnvironment(enclosing *Environment) *Environment {
 	}
 }
 
-func (s *Environment) Define(name string, value interface{}) error {
+func (s *Environment) define(name string, value interface{}) error {
 	s.values[name] = value
 	return nil
 }
 
-func (s *Environment) Get(name *Token) (interface{}, error) {
+func (s *Environment) get(name *Token) (interface{}, error) {
 	if obj, ok := s.values[name.lexeme]; ok {
 		return obj, nil
 	} else if s.enclosing != nil {
-		return s.enclosing.Get(name)
+		return s.enclosing.get(name)
 	}
 	return nil, NewRuntimeError(name, fmt.Sprintf("Undefined varibale '%v'.", name.lexeme))
 }
 
-func (s *Environment) GetAt(distance int, name string) (interface{}, error) {
+func (s *Environment) getAt(distance int, name string) (interface{}, error) {
 	// if obj, ok := s.ancestor(distance).values[name.lexeme]; ok {
 	// 	return obj, nil
 	// }
@@ -44,16 +44,16 @@ func (s *Environment) ancestor(distance int) *Environment {
 	return environment
 }
 
-func (s *Environment) Assign(name *Token, value interface{}) error {
+func (s *Environment) assign(name *Token, value interface{}) error {
 	if _, ok := s.values[name.lexeme]; ok {
 		s.values[name.lexeme] = value
 		return nil
 	} else if s.enclosing != nil {
-		return s.enclosing.Assign(name, value)
+		return s.enclosing.assign(name, value)
 	}
 	return NewRuntimeError(name, fmt.Sprintf("Undefined varibale '%v'.", name.lexeme))
 }
 
-func (s *Environment) AssignAt(distance int, name *Token, value interface{}) error {
-	return s.ancestor(distance).Assign(name, value)
+func (s *Environment) assignAt(distance int, name *Token, value interface{}) error {
+	return s.ancestor(distance).assign(name, value)
 }

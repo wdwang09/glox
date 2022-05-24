@@ -30,27 +30,27 @@ func (s *LoxFunction) arity() int {
 func (s *LoxFunction) call(interpreter *Interpreter, arguments *[]interface{}) (interface{}, error) {
 	environment := NewEnvironment(s.closure)
 	for i, param := range *s.declaration.params {
-		err := environment.Define(param.lexeme, (*arguments)[i])
+		err := environment.define(param.lexeme, (*arguments)[i])
 		if err != nil {
 			return nil, err
 		}
 	}
-	err := interpreter.ExecuteBlock(s.declaration.body, environment)
+	err := interpreter.executeBlock(s.declaration.body, environment)
 	if returnValue, ok := err.(*ReturnPseudoError); ok {
 		if s.isInitializer {
-			return s.closure.GetAt(0, "this")
+			return s.closure.getAt(0, "this")
 		}
 		return returnValue.value, nil
 	}
 	if s.isInitializer {
-		return s.closure.GetAt(0, "this")
+		return s.closure.getAt(0, "this")
 	}
 	return nil, err
 }
 
 func (s *LoxFunction) bind(instance *LoxInstance) (*LoxFunction, error) {
 	environment := NewEnvironment(s.closure)
-	err := environment.Define("this", instance)
+	err := environment.define("this", instance)
 	if err != nil {
 		return nil, err
 	}

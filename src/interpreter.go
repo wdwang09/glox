@@ -13,7 +13,7 @@ type Interpreter struct {
 
 func NewInterpreter() *Interpreter {
 	environment := NewEnvironment(nil)
-	_ = environment.Define("clock", NewClockLoxFunction())
+	_ = environment.define("clock", NewClockLoxFunction())
 	return &Interpreter{
 		globals:     environment,
 		environment: environment,
@@ -42,7 +42,7 @@ func (s *Interpreter) Interpret(statements *[]Stmt) (interface{}, error) {
 }
 
 func (s *Interpreter) execute(stmt Stmt) (interface{}, error) {
-	return stmt.Accept(s)
+	return stmt.accept(s)
 }
 
 func (s *Interpreter) Stringify(obj interface{}) string {
@@ -61,21 +61,43 @@ func (s *Interpreter) Stringify(obj interface{}) string {
 // =====
 
 func (s *Interpreter) visitBlockStmt(stmt *Block) (interface{}, error) {
-	err := s.ExecuteBlock(stmt.statements, NewEnvironment(s.environment))
+	err := s.executeBlock(stmt.statements, NewEnvironment(s.environment))
 	return nil, err
 }
 
 func (s *Interpreter) visitClassStmt(stmt *Class) (interface{}, error) {
-	err := s.environment.Define(stmt.name.lexeme, nil)
+	var superclass interface{}
+	var err error
+	if stmt.superclass != nil {
+		superclass, err = s.evaluate(stmt.superclass)
+		if _, ok := superclass.(*LoxClass); !ok {
+			return nil, NewRuntimeError(stmt.superclass.name, "Superclass must be a class.")
+		}
+	}
+	err = s.environment.define(stmt.name.lexeme, nil)
 	if err != nil {
 		return nil, err
+	}
+	if stmt.superclass != nil {
+		s.environment = NewEnvironment(s.environment)
+		err = s.environment.define("super", superclass)
+		if err != nil {
+			return nil, err
+		}
 	}
 	methods := make(map[string]*LoxFunction)
 	for _, method := range *stmt.methods {
 		methods[method.name.lexeme] = NewLoxFunction(method, s.environment, method.name.lexeme == "init")
 	}
-	class := NewLoxClass(stmt.name.lexeme, &methods)
-	err = s.environment.Assign(stmt.name, class)
+	var sClass *LoxClass
+	if superclass != nil {
+		sClass = superclass.(*LoxClass)
+	}
+	class := NewLoxClass(stmt.name.lexeme, sClass, &methods)
+	if superclass != nil {
+		s.environment = s.environment.enclosing
+	}
+	err = s.environment.assign(stmt.name, class)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +110,7 @@ func (s *Interpreter) visitExpressionStmt(stmt *Expression) (interface{}, error)
 
 func (s *Interpreter) visitFunctionStmt(stmt *Function) (interface{}, error) {
 	function := NewLoxFunction(stmt, s.environment, false)
-	return nil, s.environment.Define(stmt.name.lexeme, function)
+	return nil, s.environment.define(stmt.name.lexeme, function)
 }
 
 func (s *Interpreter) visitIfStmt(stmt *If) (interface{}, error) {
@@ -134,7 +156,7 @@ func (s *Interpreter) visitVarStmt(stmt *Var) (interface{}, error) {
 			return nil, err
 		}
 	}
-	return nil, s.environment.Define(stmt.name.lexeme, value)
+	return nil, s.environment.define(stmt.name.lexeme, value)
 }
 
 func (s *Interpreter) visitWhileStmt(stmt *While) (interface{}, error) {
@@ -156,7 +178,7 @@ func (s *Interpreter) visitWhileStmt(stmt *While) (interface{}, error) {
 
 // =====
 
-func (s *Interpreter) ExecuteBlock(statements *[]Stmt, environment *Environment) (err error) {
+func (s *Interpreter) executeBlock(statements *[]Stmt, environment *Environment) (err error) {
 	previous := s.environment
 	s.environment = environment
 	for _, statement := range *statements {
@@ -172,7 +194,7 @@ func (s *Interpreter) ExecuteBlock(statements *[]Stmt, environment *Environment)
 // =====
 
 func (s *Interpreter) evaluate(expr Expr) (interface{}, error) {
-	return expr.Accept(s)
+	return expr.accept(s)
 }
 
 func (s *Interpreter) visitAssignExpr(expr *Assign) (interface{}, error) {
@@ -181,16 +203,16 @@ func (s *Interpreter) visitAssignExpr(expr *Assign) (interface{}, error) {
 		return nil, err
 	}
 
-	// err = s.environment.Assign(expr.name, value)
+	// err = s.environment.assign(expr.name, value)
 	// if err != nil {
 	// 	return nil, err
 	// }
 	// return value, nil
 
 	if distance, ok := s.locals[expr]; ok {
-		err = s.environment.AssignAt(distance, expr.name, value)
+		err = s.environment.assignAt(distance, expr.name, value)
 	} else {
-		err = s.globals.Assign(expr.name, value)
+		err = s.globals.assign(expr.name, value)
 	}
 	if err != nil {
 		return nil, err
@@ -296,7 +318,7 @@ func (s *Interpreter) visitGetExpr(expr *Get) (interface{}, error) {
 		return nil, err
 	}
 	if v, ok := obj.(*LoxInstance); ok {
-		return v.Get(expr.name)
+		return v.get(expr.name)
 	}
 	return nil, NewRuntimeError(expr.name, "Only instances have properties.")
 }
@@ -336,14 +358,26 @@ func (s *Interpreter) visitSetExpr(expr *Set) (interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		o.Set(expr.name, value)
+		o.set(expr.name, value)
 		return value, nil
 	}
 }
 
 func (s *Interpreter) visitSuperExpr(expr *Super) (interface{}, error) {
-	// TODO implement me
-	panic("implement me")
+	distance := s.locals[expr]
+	superclass, err := s.environment.getAt(distance, "super")
+	if err != nil {
+		return nil, err
+	}
+	obj, err := s.environment.getAt(distance-1, "this")
+	if err != nil {
+		return nil, err
+	}
+	method := superclass.(*LoxClass).findMethod(expr.method.lexeme)
+	if method == nil {
+		return nil, NewRuntimeError(expr.method, "Undefined property '"+expr.method.lexeme+"'.")
+	}
+	return method.bind(obj.(*LoxInstance))
 }
 
 func (s *Interpreter) visitThisExpr(expr *This) (interface{}, error) {
@@ -369,21 +403,21 @@ func (s *Interpreter) visitUnaryExpr(expr *Unary) (interface{}, error) {
 }
 
 func (s *Interpreter) visitVariableExpr(expr *Variable) (interface{}, error) {
-	// return s.environment.Get(expr.name)
+	// return s.environment.get(expr.name)
 	return s.lookUpVariable(expr.name, expr)
 }
 
 // ====
 
-func (s *Interpreter) Resolve(expr Expr, depth int) {
+func (s *Interpreter) resolve(expr Expr, depth int) {
 	s.locals[expr] = depth
 }
 
 func (s *Interpreter) lookUpVariable(name *Token, expr Expr) (interface{}, error) {
 	if distance, ok := s.locals[expr]; ok {
-		return s.environment.GetAt(distance, name.lexeme)
+		return s.environment.getAt(distance, name.lexeme)
 	} else {
-		return s.globals.Get(name)
+		return s.globals.get(name)
 	}
 }
 

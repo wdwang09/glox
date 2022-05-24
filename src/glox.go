@@ -83,7 +83,7 @@ func (s *Glox) run(source string) int {
 
 	// Resolver
 	resolver := NewResolver(s.interpreter)
-	err = resolver.ResolveStatements(&statements)
+	err = resolver.resolveStatements(&statements)
 	if err != nil {
 		_, _ = fmt.Fprintln(os.Stderr, "[Resolver]", err.Error())
 		return 1

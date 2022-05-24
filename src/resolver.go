@@ -17,18 +17,18 @@ func NewResolver(interpreter *Interpreter) *Resolver {
 }
 
 func (s *Resolver) beginScope() {
-	s.scopes.Push()
+	s.scopes.push()
 }
 
 func (s *Resolver) endScope() {
-	s.scopes.Pop()
+	s.scopes.pop()
 }
 
 func (s *Resolver) declare(name *Token) error {
-	if s.scopes.IsEmpty() {
+	if s.scopes.isEmpty() {
 		return nil
 	}
-	scope := s.scopes.Peek()
+	scope := s.scopes.peek()
 	if _, ok := (*scope)[name.lexeme]; ok {
 		return NewResolverError(name, "Already a variable with this name in this scope.")
 	}
@@ -37,13 +37,13 @@ func (s *Resolver) declare(name *Token) error {
 }
 
 func (s *Resolver) define(name *Token) {
-	if s.scopes.IsEmpty() {
+	if s.scopes.isEmpty() {
 		return
 	}
-	(*(s.scopes.Peek()))[name.lexeme] = true
+	(*(s.scopes.peek()))[name.lexeme] = true
 }
 
-func (s *Resolver) ResolveStatements(statements *[]Stmt) error {
+func (s *Resolver) resolveStatements(statements *[]Stmt) error {
 	for _, stmt := range *statements {
 		err := s.resolveStatement(stmt)
 		if err != nil {
@@ -54,12 +54,12 @@ func (s *Resolver) ResolveStatements(statements *[]Stmt) error {
 }
 
 func (s *Resolver) resolveStatement(stmt Stmt) error {
-	_, err := stmt.Accept(s)
+	_, err := stmt.accept(s)
 	return err
 }
 
 func (s *Resolver) resolveExpression(expr Expr) error {
-	_, err := expr.Accept(s)
+	_, err := expr.accept(s)
 	return err
 }
 
@@ -74,7 +74,7 @@ func (s *Resolver) resolveFunction(function *Function, fType FunctionType) error
 		}
 		s.define(param)
 	}
-	err := s.ResolveStatements(function.body)
+	err := s.resolveStatements(function.body)
 	if err != nil {
 		return err
 	}
@@ -87,7 +87,7 @@ func (s *Resolver) resolveFunction(function *Function, fType FunctionType) error
 
 func (s *Resolver) visitBlockStmt(stmt *Block) (interface{}, error) {
 	s.beginScope()
-	err := s.ResolveStatements(stmt.statements)
+	err := s.resolveStatements(stmt.statements)
 	if err != nil {
 		return nil, err
 	}
@@ -103,8 +103,20 @@ func (s *Resolver) visitClassStmt(stmt *Class) (interface{}, error) {
 		return nil, err
 	}
 	s.define(stmt.name)
+	if stmt.superclass != nil && stmt.name.lexeme == stmt.superclass.name.lexeme {
+		return nil, NewResolverError(stmt.superclass.name, "A class can't inherit from itself.")
+	}
+	if stmt.superclass != nil {
+		s.currentClass = CSubclass
+		err = s.resolveExpression(stmt.superclass)
+		if err != nil {
+			return nil, err
+		}
+		s.beginScope()
+		(*s.scopes.peek())["super"] = true
+	}
 	s.beginScope()
-	(*s.scopes.Peek())["this"] = true
+	(*s.scopes.peek())["this"] = true
 	for _, method := range *stmt.methods {
 		declaration := FMethod
 		if method.name.lexeme == "init" {
@@ -116,6 +128,9 @@ func (s *Resolver) visitClassStmt(stmt *Class) (interface{}, error) {
 		}
 	}
 	s.endScope()
+	if stmt.superclass != nil {
+		s.endScope()
+	}
 	s.currentClass = enclosingClass
 	return nil, nil
 }
@@ -253,8 +268,13 @@ func (s *Resolver) visitSetExpr(expr *Set) (interface{}, error) {
 }
 
 func (s *Resolver) visitSuperExpr(expr *Super) (interface{}, error) {
-	// TODO implement me
-	panic("implement me")
+	if s.currentClass == CNone {
+		return nil, NewResolverError(expr.keyword, "Can't use 'super' outside of a class.")
+	} else if s.currentClass != CSubclass {
+		return nil, NewResolverError(expr.keyword, "Can't use 'super' in a class with no superclass.")
+	}
+	s.resolveLocal(expr, expr.keyword)
+	return nil, nil
 }
 
 func (s *Resolver) visitThisExpr(expr *This) (interface{}, error) {
@@ -270,8 +290,8 @@ func (s *Resolver) visitUnaryExpr(expr *Unary) (interface{}, error) {
 }
 
 func (s *Resolver) visitVariableExpr(expr *Variable) (interface{}, error) {
-	if !s.scopes.IsEmpty() {
-		if value, ok := (*(s.scopes.Peek()))[expr.name.lexeme]; !value && ok {
+	if !s.scopes.isEmpty() {
+		if value, ok := (*(s.scopes.peek()))[expr.name.lexeme]; !value && ok {
 			return nil, NewResolverError(expr.name, "Can't read local variable in its own initializer.")
 		}
 	}
@@ -280,9 +300,9 @@ func (s *Resolver) visitVariableExpr(expr *Variable) (interface{}, error) {
 }
 
 func (s *Resolver) resolveLocal(expr Expr, name *Token) {
-	for i := s.scopes.Size() - 1; i >= 0; i-- {
-		if _, ok := (*s.scopes.Get(i))[name.lexeme]; ok {
-			s.interpreter.Resolve(expr, s.scopes.Size()-1-i)
+	for i := s.scopes.size() - 1; i >= 0; i-- {
+		if _, ok := (*s.scopes.get(i))[name.lexeme]; ok {
+			s.interpreter.resolve(expr, s.scopes.size()-1-i)
 			return
 		}
 	}
@@ -300,27 +320,27 @@ func NewScopeStack() *scopeStack {
 	}
 }
 
-func (s *scopeStack) Push() {
+func (s *scopeStack) push() {
 	s.scopes = append(s.scopes, make(map[string]bool))
 }
 
-func (s *scopeStack) Pop() {
+func (s *scopeStack) pop() {
 	s.scopes = s.scopes[:len(s.scopes)-1]
 }
 
-func (s *scopeStack) Get(i int) *map[string]bool {
+func (s *scopeStack) get(i int) *map[string]bool {
 	return &s.scopes[i]
 }
 
-func (s *scopeStack) Peek() *map[string]bool {
-	return s.Get(s.Size() - 1)
+func (s *scopeStack) peek() *map[string]bool {
+	return s.get(s.size() - 1)
 }
 
-func (s *scopeStack) IsEmpty() bool {
+func (s *scopeStack) isEmpty() bool {
 	return len(s.scopes) == 0
 }
 
-func (s *scopeStack) Size() int {
+func (s *scopeStack) size() int {
 	return len(s.scopes)
 }
 
@@ -340,4 +360,5 @@ type ClassType int
 const (
 	CNone ClassType = iota
 	CClass
+	CSubclass
 )

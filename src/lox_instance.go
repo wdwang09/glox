@@ -12,7 +12,7 @@ func NewLoxInstance(class *LoxClass) *LoxInstance {
 	}
 }
 
-func (s *LoxInstance) Get(name *Token) (interface{}, error) {
+func (s *LoxInstance) get(name *Token) (interface{}, error) {
 	if value, ok := (*s.fields)[name.lexeme]; ok {
 		return value, nil
 	}
@@ -23,7 +23,7 @@ func (s *LoxInstance) Get(name *Token) (interface{}, error) {
 	return nil, NewRuntimeError(name, "Undefined property '"+name.lexeme+"'.")
 }
 
-func (s *LoxInstance) Set(name *Token, value interface{}) {
+func (s *LoxInstance) set(name *Token, value interface{}) {
 	(*s.fields)[name.lexeme] = value
 }
 

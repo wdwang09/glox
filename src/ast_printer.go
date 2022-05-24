@@ -9,7 +9,7 @@ func NewAstPrinter() *AstPrinter {
 }
 
 func (s *AstPrinter) Print(expr Expr) (string, error) {
-	sInterface, err := expr.Accept(s)
+	sInterface, err := expr.accept(s)
 	if err != nil {
 		return "", err
 	}
@@ -21,7 +21,7 @@ func (s *AstPrinter) parenthesize(name string, exprList ...Expr) (string, error)
 	res += name
 	for _, expr := range exprList {
 		res += " "
-		sInterface, err := expr.Accept(s)
+		sInterface, err := expr.accept(s)
 		if err != nil {
 			return "", err
 		}

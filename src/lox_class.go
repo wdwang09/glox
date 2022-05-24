@@ -1,14 +1,16 @@
 package glox
 
 type LoxClass struct {
-	name    string
-	methods *map[string]*LoxFunction
+	name       string
+	superclass *LoxClass
+	methods    *map[string]*LoxFunction
 }
 
-func NewLoxClass(name string, methods *map[string]*LoxFunction) *LoxClass {
+func NewLoxClass(name string, superclass *LoxClass, methods *map[string]*LoxFunction) *LoxClass {
 	return &LoxClass{
-		name:    name,
-		methods: methods,
+		name:       name,
+		superclass: superclass,
+		methods:    methods,
 	}
 }
 
@@ -39,6 +41,9 @@ func (s *LoxClass) call(interpreter *Interpreter, arguments *[]interface{}) (int
 func (s *LoxClass) findMethod(name string) *LoxFunction {
 	if v, ok := (*s.methods)[name]; ok {
 		return v
+	}
+	if s.superclass != nil {
+		return s.superclass.findMethod(name)
 	}
 	return nil
 }

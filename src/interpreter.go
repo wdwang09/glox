@@ -50,14 +50,12 @@ func (s *Interpreter) Stringify(obj interface{}) string {
 		return "nil"
 	}
 	if isFloat64(obj) {
-		text := fmt.Sprintf("%v", obj.(float64))
-		return text
+		return fmt.Sprintf("%v", obj.(float64))
 	}
 	if isBool(obj) {
-		text := fmt.Sprintf("%v", obj.(bool))
-		return text
+		return fmt.Sprintf("%v", obj.(bool))
 	}
-	return obj.(string)
+	return fmt.Sprint(obj)
 }
 
 // =====
@@ -68,8 +66,20 @@ func (s *Interpreter) visitBlockStmt(stmt *Block) (interface{}, error) {
 }
 
 func (s *Interpreter) visitClassStmt(stmt *Class) (interface{}, error) {
-	// TODO implement me
-	panic("implement me")
+	err := s.environment.Define(stmt.name.lexeme, nil)
+	if err != nil {
+		return nil, err
+	}
+	methods := make(map[string]*LoxFunction)
+	for _, method := range *stmt.methods {
+		methods[method.name.lexeme] = NewLoxFunction(method, s.environment, method.name.lexeme == "init")
+	}
+	class := NewLoxClass(stmt.name.lexeme, &methods)
+	err = s.environment.Assign(stmt.name, class)
+	if err != nil {
+		return nil, err
+	}
+	return nil, nil
 }
 
 func (s *Interpreter) visitExpressionStmt(stmt *Expression) (interface{}, error) {
@@ -77,7 +87,7 @@ func (s *Interpreter) visitExpressionStmt(stmt *Expression) (interface{}, error)
 }
 
 func (s *Interpreter) visitFunctionStmt(stmt *Function) (interface{}, error) {
-	function := NewLoxFunction(stmt, s.environment)
+	function := NewLoxFunction(stmt, s.environment, false)
 	return nil, s.environment.Define(stmt.name.lexeme, function)
 }
 
@@ -281,8 +291,14 @@ func (s *Interpreter) visitCallExpr(expr *Call) (interface{}, error) {
 }
 
 func (s *Interpreter) visitGetExpr(expr *Get) (interface{}, error) {
-	// TODO implement me
-	panic("implement me")
+	obj, err := s.evaluate(expr.object)
+	if err != nil {
+		return nil, err
+	}
+	if v, ok := obj.(*LoxInstance); ok {
+		return v.Get(expr.name)
+	}
+	return nil, NewRuntimeError(expr.name, "Only instances have properties.")
 }
 
 func (s *Interpreter) visitGroupingExpr(expr *Grouping) (interface{}, error) {
@@ -309,8 +325,20 @@ func (s *Interpreter) visitLogicalExpr(expr *Logical) (interface{}, error) {
 }
 
 func (s *Interpreter) visitSetExpr(expr *Set) (interface{}, error) {
-	// TODO implement me
-	panic("implement me")
+	obj, err := s.evaluate(expr.object)
+	if err != nil {
+		return nil, err
+	}
+	if o, ok := obj.(*LoxInstance); !ok {
+		return nil, NewRuntimeError(expr.name, "Only instances have fields.")
+	} else {
+		value, err := s.evaluate(expr.value)
+		if err != nil {
+			return nil, err
+		}
+		o.Set(expr.name, value)
+		return value, nil
+	}
 }
 
 func (s *Interpreter) visitSuperExpr(expr *Super) (interface{}, error) {
@@ -319,8 +347,7 @@ func (s *Interpreter) visitSuperExpr(expr *Super) (interface{}, error) {
 }
 
 func (s *Interpreter) visitThisExpr(expr *This) (interface{}, error) {
-	// TODO implement me
-	panic("implement me")
+	return s.lookUpVariable(expr.keyword, expr)
 }
 
 func (s *Interpreter) visitUnaryExpr(expr *Unary) (interface{}, error) {
@@ -354,7 +381,7 @@ func (s *Interpreter) Resolve(expr Expr, depth int) {
 
 func (s *Interpreter) lookUpVariable(name *Token, expr Expr) (interface{}, error) {
 	if distance, ok := s.locals[expr]; ok {
-		return s.environment.GetAt(distance, name)
+		return s.environment.GetAt(distance, name.lexeme)
 	} else {
 		return s.globals.Get(name)
 	}

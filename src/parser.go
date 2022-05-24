@@ -1,7 +1,5 @@
 package glox
 
-// TODO: Parser遇到空行时会出问题
-
 type Parser struct {
 	tokens  *[]*Token
 	current int
@@ -50,10 +48,14 @@ func (s *Parser) block() ([]Stmt, error) {
 	}
 }
 
-// declaration    → funDecl
+// declaration    → classDecl
+//                | funDecl
 //                | varDecl
 //                | statement ;
 func (s *Parser) declaration() (Stmt, error) {
+	if s.match(TokenClass) {
+		return s.classDeclaration()
+	}
 	if s.match(TokenFun) {
 		return s.function("function")
 	}
@@ -76,6 +78,31 @@ func (s *Parser) declaration() (Stmt, error) {
 		return nil, err
 	}
 	return stmt, nil
+}
+
+// classDecl      → "class" IDENTIFIER "{" function* "}" ;
+func (s *Parser) classDeclaration() (Stmt, error) {
+	className, err := s.consume(TokenIdentifier, "Expect class name.")
+	if err != nil {
+		return nil, err
+	}
+	_, err = s.consume(TokenLeftBrace, "Expect '{' before class body.")
+	if err != nil {
+		return nil, err
+	}
+	var methods []*Function
+	for !s.check(TokenRightBrace) && !s.isAtEnd() {
+		f, err := s.function("method")
+		if err != nil {
+			return nil, err
+		}
+		methods = append(methods, f)
+	}
+	_, err = s.consume(TokenRightBrace, "Expect '}' after class body.")
+	if err != nil {
+		return nil, err
+	}
+	return NewClass(className, nil, &methods), nil
 }
 
 // funDecl        → "fun" function ;
@@ -350,7 +377,7 @@ func (s *Parser) expression() (Expr, error) {
 	return s.assignment()
 }
 
-// assignment     → IDENTIFIER "=" assignment
+// assignment     → ( call "." )? IDENTIFIER "=" assignment
 //                | logic_or ;
 func (s *Parser) assignment() (Expr, error) {
 	expr, err := s.or()
@@ -366,6 +393,8 @@ func (s *Parser) assignment() (Expr, error) {
 		if v, ok := expr.(*Variable); ok {
 			name := v.name
 			return NewAssign(name, value), nil
+		} else if get, ok := expr.(*Get); ok {
+			return NewSet(get.object, get.name, value), nil
 		}
 		return nil, NewParserError(equals, "Invalid assignment target.")
 	}
@@ -487,7 +516,7 @@ func (s *Parser) unary() (Expr, error) {
 	return s.call()
 }
 
-// call           → primary ( "(" arguments? ")" )* ;
+// call           → primary ( "(" arguments? ")" | "." IDENTIFIER )* ;
 func (s *Parser) call() (Expr, error) {
 	expr, err := s.primary()
 	if err != nil {
@@ -499,6 +528,12 @@ func (s *Parser) call() (Expr, error) {
 			if err != nil {
 				return nil, err
 			}
+		} else if s.match(TokenDot) {
+			name, err := s.consume(TokenIdentifier, "Expect property name after '.'.")
+			if err != nil {
+				return nil, err
+			}
+			expr = NewGet(expr, name)
 		} else {
 			break
 		}
@@ -541,6 +576,9 @@ func (s *Parser) finishCall(callee Expr) (Expr, error) {
 func (s *Parser) primary() (Expr, error) {
 	if s.match(TokenNumber, TokenString) {
 		return NewLiteral(s.previous().literal), nil
+	}
+	if s.match(TokenThis) {
+		return NewThis(s.previous()), nil
 	}
 	if s.match(TokenTrue) {
 		return NewLiteral(true), nil

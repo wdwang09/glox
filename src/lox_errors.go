@@ -64,3 +64,26 @@ func NewRuntimeError(token *Token, message string) *RuntimeError {
 		message: message,
 	}
 }
+
+// =====
+
+type ResolverError struct {
+	token   *Token
+	message string
+}
+
+func (s *ResolverError) Error() string {
+	where := "end"
+	if s.token.tokenType != TokenEof {
+		where = "\"" + s.token.String() + "\""
+	}
+	return fmt.Sprintf("[line %v] Error at %v: %v\n",
+		s.token.line, where, s.message)
+}
+
+func NewResolverError(token *Token, message string) *ResolverError {
+	return &ResolverError{
+		token:   token,
+		message: message,
+	}
+}

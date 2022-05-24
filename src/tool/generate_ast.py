@@ -24,9 +24,7 @@ def java_to_go(types: List[str]) -> List[List[str]]:
             m = m.strip()  # member
             dot_idx = t.find(".")
             if dot_idx != -1:
-                t = t[dot_idx + 1 :]
-                if t[-1] == ">":
-                    t = t[:-1]
+                t = t[: dot_idx - 4] + t[dot_idx + 1 :]
             if t[:4] == "List":
                 tmp_t = "[]"
                 if t[5:9].lower() not in ("expr", "stmt"):

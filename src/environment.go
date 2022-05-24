@@ -28,12 +28,12 @@ func (s *Environment) Get(name *Token) (interface{}, error) {
 	return nil, NewRuntimeError(name, fmt.Sprintf("Undefined varibale '%v'.", name.lexeme))
 }
 
-func (s *Environment) GetAt(distance int, name *Token) (interface{}, error) {
+func (s *Environment) GetAt(distance int, name string) (interface{}, error) {
 	// if obj, ok := s.ancestor(distance).values[name.lexeme]; ok {
 	// 	return obj, nil
 	// }
 	// return nil, NewRuntimeError(name, fmt.Sprintf("Undefined variable '%v'.", name.lexeme))
-	return s.ancestor(distance).Get(name)
+	return s.ancestor(distance).values[name], nil
 }
 
 func (s *Environment) ancestor(distance int) *Environment {

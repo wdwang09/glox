@@ -4,6 +4,7 @@ type Resolver struct {
 	interpreter     *Interpreter
 	scopes          *scopeStack
 	currentFunction FunctionType
+	currentClass    ClassType
 }
 
 func NewResolver(interpreter *Interpreter) *Resolver {
@@ -11,6 +12,7 @@ func NewResolver(interpreter *Interpreter) *Resolver {
 		interpreter:     interpreter,
 		scopes:          NewScopeStack(),
 		currentFunction: FNone,
+		currentClass:    CNone,
 	}
 }
 
@@ -28,7 +30,7 @@ func (s *Resolver) declare(name *Token) error {
 	}
 	scope := s.scopes.Peek()
 	if _, ok := (*scope)[name.lexeme]; ok {
-		return NewParserError(name, "Already a variable with this name in this scope.")
+		return NewResolverError(name, "Already a variable with this name in this scope.")
 	}
 	(*scope)[name.lexeme] = false
 	return nil
@@ -74,7 +76,7 @@ func (s *Resolver) resolveFunction(function *Function, fType FunctionType) error
 	}
 	err := s.ResolveStatements(function.body)
 	if err != nil {
-		return nil
+		return err
 	}
 	s.endScope()
 	s.currentFunction = enclosingFunction
@@ -94,8 +96,28 @@ func (s *Resolver) visitBlockStmt(stmt *Block) (interface{}, error) {
 }
 
 func (s *Resolver) visitClassStmt(stmt *Class) (interface{}, error) {
-	// TODO implement me
-	panic("implement me")
+	enclosingClass := s.currentClass
+	s.currentClass = CClass
+	err := s.declare(stmt.name)
+	if err != nil {
+		return nil, err
+	}
+	s.define(stmt.name)
+	s.beginScope()
+	(*s.scopes.Peek())["this"] = true
+	for _, method := range *stmt.methods {
+		declaration := FMethod
+		if method.name.lexeme == "init" {
+			declaration = FInitializer
+		}
+		err = s.resolveFunction(method, declaration)
+		if err != nil {
+			return nil, err
+		}
+	}
+	s.endScope()
+	s.currentClass = enclosingClass
+	return nil, nil
 }
 
 func (s *Resolver) visitExpressionStmt(stmt *Expression) (interface{}, error) {
@@ -135,9 +157,12 @@ func (s *Resolver) visitPrintStmt(stmt *Print) (interface{}, error) {
 
 func (s *Resolver) visitReturnStmt(stmt *Return) (interface{}, error) {
 	if s.currentFunction == FNone {
-		return nil, NewParserError(stmt.keyword, "Can't return from top-level code.")
+		return nil, NewResolverError(stmt.keyword, "Can't return from top-level code.")
 	}
 	if stmt.value != nil {
+		if s.currentFunction == FInitializer {
+			return nil, NewResolverError(stmt.keyword, "Can't return a value from an initializer.")
+		}
 		return nil, s.resolveExpression(stmt.value)
 	}
 	return nil, nil
@@ -200,8 +225,7 @@ func (s *Resolver) visitCallExpr(expr *Call) (interface{}, error) {
 }
 
 func (s *Resolver) visitGetExpr(expr *Get) (interface{}, error) {
-	// TODO implement me
-	panic("implement me")
+	return nil, s.resolveExpression(expr.object)
 }
 
 func (s *Resolver) visitGroupingExpr(expr *Grouping) (interface{}, error) {
@@ -221,8 +245,11 @@ func (s *Resolver) visitLogicalExpr(expr *Logical) (interface{}, error) {
 }
 
 func (s *Resolver) visitSetExpr(expr *Set) (interface{}, error) {
-	// TODO implement me
-	panic("implement me")
+	err := s.resolveExpression(expr.value)
+	if err != nil {
+		return nil, err
+	}
+	return nil, s.resolveExpression(expr.object)
 }
 
 func (s *Resolver) visitSuperExpr(expr *Super) (interface{}, error) {
@@ -231,8 +258,11 @@ func (s *Resolver) visitSuperExpr(expr *Super) (interface{}, error) {
 }
 
 func (s *Resolver) visitThisExpr(expr *This) (interface{}, error) {
-	// TODO implement me
-	panic("implement me")
+	if s.currentClass == CNone {
+		return nil, NewResolverError(expr.keyword, "Can't use 'this' outside of a class.")
+	}
+	s.resolveLocal(expr, expr.keyword)
+	return nil, nil
 }
 
 func (s *Resolver) visitUnaryExpr(expr *Unary) (interface{}, error) {
@@ -242,7 +272,7 @@ func (s *Resolver) visitUnaryExpr(expr *Unary) (interface{}, error) {
 func (s *Resolver) visitVariableExpr(expr *Variable) (interface{}, error) {
 	if !s.scopes.IsEmpty() {
 		if value, ok := (*(s.scopes.Peek()))[expr.name.lexeme]; !value && ok {
-			return nil, NewParserError(expr.name, "Can't read local variable in its own initializer.")
+			return nil, NewResolverError(expr.name, "Can't read local variable in its own initializer.")
 		}
 	}
 	s.resolveLocal(expr, expr.name)
@@ -301,4 +331,13 @@ type FunctionType int
 const (
 	FNone FunctionType = iota
 	FFunction
+	FInitializer
+	FMethod
+)
+
+type ClassType int
+
+const (
+	CNone ClassType = iota
+	CClass
 )

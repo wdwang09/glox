@@ -1,0 +1,71 @@
+class Bagel {}
+var bagel = Bagel();
+print bagel; // Prints "Bagel instance".
+bagel.b = "bagel.b";
+print bagel.b;
+
+class Bacon {
+    eat() {
+        print "Crunch crunch crunch!";
+    }
+}
+Bacon().eat(); // Prints "Crunch crunch crunch!".
+
+class Breakfast {
+    cook() {
+        print "Eggs a-fryin'!";
+    }
+    serve(who) {
+        print "Enjoy your breakfast, " + who + ".";
+    }
+}
+var breakfast = Breakfast();
+breakfast.serve("A");
+var breakfastServe = breakfast.serve;
+breakfastServe("B");
+
+class Egotist {
+    speak() {
+        print this;
+    }
+}
+var method = Egotist().speak;
+method();
+
+class Cake {
+    taste() {
+        var adjective = "delicious";
+        print "The " + this.flavor + " cake is " + adjective + "!";
+    }
+}
+var cake = Cake();
+cake.flavor = "German chocolate";
+cake.taste(); // Prints "The German chocolate cake is delicious!".
+
+class Thing {
+    getCallback() {
+        fun localFunction() {
+            print this;
+        }
+
+        return localFunction;
+    }
+}
+var callback = Thing().getCallback();
+callback();
+
+class Foo {
+    init() {
+        print this;
+    }
+}
+var foo = Foo();
+foo.init();
+
+class Foo2 {
+    init() {
+        return;
+    }
+}
+var foo2 = Foo2();
+print foo2;

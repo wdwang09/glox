@@ -10,14 +10,16 @@ type LoxCallable interface {
 // =====
 
 type LoxFunction struct {
-	declaration *Function
-	closure     *Environment
+	declaration   *Function
+	closure       *Environment
+	isInitializer bool
 }
 
-func NewLoxFunction(declaration *Function, closure *Environment) *LoxFunction {
+func NewLoxFunction(declaration *Function, closure *Environment, isInitializer bool) *LoxFunction {
 	return &LoxFunction{
-		declaration: declaration,
-		closure:     closure,
+		declaration:   declaration,
+		closure:       closure,
+		isInitializer: isInitializer,
 	}
 }
 
@@ -35,9 +37,24 @@ func (s *LoxFunction) call(interpreter *Interpreter, arguments *[]interface{}) (
 	}
 	err := interpreter.ExecuteBlock(s.declaration.body, environment)
 	if returnValue, ok := err.(*ReturnPseudoError); ok {
+		if s.isInitializer {
+			return s.closure.GetAt(0, "this")
+		}
 		return returnValue.value, nil
 	}
+	if s.isInitializer {
+		return s.closure.GetAt(0, "this")
+	}
 	return nil, err
+}
+
+func (s *LoxFunction) bind(instance *LoxInstance) (*LoxFunction, error) {
+	environment := NewEnvironment(s.closure)
+	err := environment.Define("this", instance)
+	if err != nil {
+		return nil, err
+	}
+	return NewLoxFunction(s.declaration, environment, s.isInitializer), nil
 }
 
 func (s *LoxFunction) String() string {

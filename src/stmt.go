@@ -35,10 +35,10 @@ func (stmt *Block) Accept(visitor stmtVisitor) (interface{}, error) {
 type Class struct {
 	name       *Token
 	superclass *Variable
-	methods    *Function
+	methods    *[]*Function
 }
 
-func NewClass(name *Token, superclass *Variable, methods *Function) *Class {
+func NewClass(name *Token, superclass *Variable, methods *[]*Function) *Class {
 	stmt := new(Class)
 	stmt.name = name
 	stmt.superclass = superclass

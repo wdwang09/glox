@@ -78,8 +78,15 @@ func (s *Glox) run(source string) int {
 	}
 
 	// AST Printer
-	// astPrinter := NewAstPrinter()
-	// fmt.Println(astPrinter.Print(expression))
+	astPrinter := NewAstPrinter()
+	for _, statement := range statements {
+		astStr, err := astPrinter.PrintStatement(statement)
+		if err != nil {
+			_, _ = fmt.Fprintln(os.Stderr, "[AST]", err.Error())
+			return 1
+		}
+		fmt.Println("[AST]", astStr)
+	}
 
 	// Resolver
 	resolver := NewResolver(s.interpreter)

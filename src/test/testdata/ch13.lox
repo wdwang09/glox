@@ -23,7 +23,6 @@ class B < A {
     method() {
         print "B method";
     }
-
     test() {
         super.method();
     }

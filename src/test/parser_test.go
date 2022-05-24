@@ -12,7 +12,7 @@ func initExpressionAstTestCase() {
 		// primary
 		"true":      "true",
 		"12345":     "12345",
-		"\"hello\"": "hello",
+		"\"hello\"": "\"hello\"",
 		"nil":       "nil",
 		"(1)":       "(group 1)",
 
@@ -55,7 +55,7 @@ func TestParser(t *testing.T) {
 			t.Fatal(err.Error())
 		}
 		astPrinter := glox.NewAstPrinter()
-		astOutput, err := astPrinter.Print(expression)
+		astOutput, err := astPrinter.PrintExpression(expression)
 		if err != nil {
 			t.Fatal(err.Error())
 		}
